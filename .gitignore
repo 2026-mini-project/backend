@@ -1,0 +1,18 @@
+# Build artifacts
+/_build/
+/cover/
+/deps/
+/doc/
+/.fetch
+erl_crash.dump
+*.ez
+*.beam
+
+# Local environment
+.env
+.env.local
+
+# Misc
+.elixir_ls/
+.DS_Store
+*.log

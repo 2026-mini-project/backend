@@ -137,3 +137,26 @@ id를 가진 방을 가져오는 API
 **웹소켓 플로우는 FigJam에 해뒀음**  
 [FigJam](https://www.figma.com/board/rfGW6n08AYT5GbXnG5e52J/2026-mini-project)
 
+# 개발 환경
+
+`mix compile` 시 시스템 Erlang/OTP의 `public_key` 패키지에서 `include/OTP-PUB-KEY.hrl`이 누락되면
+`phx.gen.cert` 의존성 컴파일이 실패한다 (우리 코드와 무관). Ubuntu/Debian 계열에서는 다음으로
+복구할 것:
+
+```sh
+sudo apt-get install --reinstall erlang-public-key
+```
+
+# 이벤트 요약 (WebSocket)
+
+| client → server | server → client (broadcast)              | 비고                                         |
+|-----------------|-------------------------------------------|----------------------------------------------|
+| `identify`      | `welcome {pingInterval, pongTimeout}`     | 세션 인증 + 핑 간격 협상                       |
+| `join`          | `joined {users}`                          | `{"join":{"id":...}}`                        |
+| `ready`         | `ready <APIUser>`                         |                                              |
+| `cancelReady`   | `cancelReady <APIUser>`                   |                                              |
+| `startGame`     | `gameStarted`, `gameBoard {data: <b85>}`  | owner only, `turn`은 첫 턴 user에게만         |
+| `boardClick`    | `boardClick {x,y,by}`, 다음 user에 `turn` | 현재 턴 user만 허용, 아니면 `error`           |
+| `gameClear`     | `gameClear {winner: <APIUser>}`           | status가 `:cleared`로 전환, 이후 `startGame` 가능 |
+| `ping`          | `pong {reply, echo}`                      | heartbeat                                    |
+

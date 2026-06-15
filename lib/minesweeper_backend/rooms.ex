@@ -16,6 +16,8 @@ defmodule MinesweeperBackend.Rooms do
 
   @members_prefix "room:"
   @members_suffix ":members"
+  @ready_prefix "room:"
+  @ready_suffix ":ready"
 
   @doc """
   Creates a room owned by `owner_id`. The owner is immediately added
@@ -75,6 +77,14 @@ defmodule MinesweeperBackend.Rooms do
     end
   end
 
+  @doc "Lists the session/user ids currently in a room's membership set."
+  def list_members(room_id) do
+    case Redix.command(["SMEMBERS", members_key(room_id)]) do
+      {:ok, members} when is_list(members) -> members
+      _ -> []
+    end
+  end
+
   @doc "Removes a session/user from a room's membership set."
   def remove_member(room_id, user_id) do
     case Redix.command(["SREM", members_key(room_id), user_id]) do
@@ -83,5 +93,33 @@ defmodule MinesweeperBackend.Rooms do
     end
   end
 
+  @doc "Lists the session ids currently marked as ready in a room."
+  def list_ready(room_id) do
+    case Redix.command(["HKEYS", ready_key(room_id)]) do
+      {:ok, keys} when is_list(keys) -> keys
+      _ -> []
+    end
+  end
+
+  @doc """
+  Marks a session as ready in the given room. Returns `:ok` even on
+  Redis failure (best-effort), matching the membership helpers.
+  """
+  def mark_ready(room_id, user_id) do
+    case Redix.command(["HSET", ready_key(room_id), user_id, "1"]) do
+      {:ok, _} -> :ok
+      _ -> :ok
+    end
+  end
+
+  @doc "Removes a session's ready flag in the given room."
+  def cancel_ready(room_id, user_id) do
+    case Redix.command(["HDEL", ready_key(room_id), user_id]) do
+      {:ok, _} -> :ok
+      _ -> :ok
+    end
+  end
+
   defp members_key(room_id), do: @members_prefix <> room_id <> @members_suffix
+  defp ready_key(room_id), do: @ready_prefix <> room_id <> @ready_suffix
 end

@@ -13,4 +13,10 @@ defmodule MinesweeperBackendWeb.Endpoint do
   plug Plug.Head
 
   plug MinesweeperBackendWeb.Router
+
+  socket "/socket", MinesweeperBackendWeb.UserSocket,
+    websocket: [
+      connect_info: [:peer_data, :x_headers],
+      timeout: :infinity
+    ]
 end

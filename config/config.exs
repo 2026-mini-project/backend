@@ -15,7 +15,12 @@ config :minesweeper_backend, MinesweeperBackendWeb.Endpoint,
 
 config :minesweeper_backend,
   session_ttl_seconds: 86_400,
-  room_max_players: 2
+  room_max_players: 2,
+  socket_identify_timeout_ms: 5_000,
+  socket_ping_interval_ms: 10_000,
+  socket_pong_timeout_ms: 3_000,
+  game_board_size: 8,
+  game_mine_count: 10
 
 config :phoenix, :json_library, Jason
 

@@ -35,7 +35,9 @@ defmodule MinesweeperBackend.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.1"},
       {:dns_cluster, "~> 0.1.3"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:open_api_spex, "~> 3.16"},
+      {:plug_cowboy, "~> 2.7"}
     ]
   end
 

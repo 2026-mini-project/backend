@@ -24,6 +24,16 @@ defmodule MinesweeperBackendWeb.SessionController do
     end
   end
 
+  def refresh(conn, _params) do
+    user = conn.assigns.current_user
+
+    with :ok <- Accounts.refresh_session(user.id) do
+      conn
+      |> put_view(json: SessionJSON)
+      |> render(:show, user: user)
+    end
+  end
+
   defp fetch_name(%{"name" => name}) when is_binary(name) and name != "", do: {:ok, name}
   defp fetch_name(_), do: {:error, "name is required"}
 end

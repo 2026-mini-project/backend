@@ -77,6 +77,21 @@ type APIRoom = {
 
 [APIUser](#apiuser)
 
+## POST /session/refresh
+
+세션 ID의 만료를 연장하는 API  
+기본 만료 시간은 6시간이며, 이 API를 호출하면 세션 ID의 만료가 6시간 더 연장된다. (서버 설정에 따라 다를 수 있음)
+
+### Request
+
+|헤더|타입|
+|-|-|
+|Authorization|sessionId(string)|
+
+### Response
+
+[APIUser](#apiuser)
+
 ## POST /session
 
 세션을 새로 생성하는 API  

@@ -32,6 +32,24 @@ defmodule MinesweeperBackend.Accounts do
   end
 
   @doc """
+  Extends the lifetime of an existing session by re-setting the Redis
+  cache key with the configured TTL. Returns `:ok` on success or
+  `{:error, :unauthorized}` if no matching session/user exists.
+  """
+  def refresh_session(nil), do: {:error, :unauthorized}
+  def refresh_session(""), do: {:error, :unauthorized}
+
+  def refresh_session(session_id) when is_binary(session_id) do
+    with :ok <- validate_uuid(session_id),
+         {:ok, user_id} <- lookup_session(session_id),
+         :ok <- put_session_cache(user_id) do
+      :ok
+    else
+      _ -> {:error, :unauthorized}
+    end
+  end
+
+  @doc """
   Looks up the user behind a session id.
 
   Tries Redis first; if missing, falls back to Postgres and rehydrates

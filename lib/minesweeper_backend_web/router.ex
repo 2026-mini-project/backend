@@ -22,6 +22,7 @@ defmodule MinesweeperBackendWeb.Router do
     pipe_through [:api, :authenticated]
 
     get "/session", SessionController, :show
+    post "/session/refresh", SessionController, :refresh
     get "/rooms/:id", RoomController, :show
     post "/rooms", RoomController, :create
   end

@@ -1,15 +1,19 @@
 defmodule MinesweeperBackend.Auth do
-  use MyApp.Web, :channel
+  @moduledoc """
+  Placeholder for the historical `MinesweeperBackend.Auth` module.
 
-  # 클라이언트가 채널에 참여(join)할 때 호출
-  def join("room:lobby", _payload, socket) do
-    {:ok, socket}
-  end
+  Originally the codebase referenced a `use MyApp.Web, :channel`
+  helper that does not exist in this project. The real authentication
+  happens in `MinesweeperBackendWeb.SocketAuth` (WebSocket
+  handshake) and `MinesweeperBackendWeb.Plugs.Authenticate` (HTTP).
+  This module is kept only so the previous module name keeps
+  compiling; it is not registered as a channel and should be removed
+  once the codebase stops referencing it.
+  """
 
-  # 클라이언트가 "new_msg" 이벤트를 보냈을 때 처리
-  def handle_in("new_msg", %{"body" => body}, socket) do
-    # 현재 채널에 참여한 모든 사람에게 메시지 브로드캐스트
-    broadcast!(socket, "new_msg", %{body: body})
-    {:noreply, socket}
-  end
+  use Phoenix.Channel
+
+  def join(_topic, _payload, socket), do: {:ok, socket}
+
+  def handle_in(_event, _payload, socket), do: {:noreply, socket}
 end

@@ -49,10 +49,22 @@ defmodule MinesweeperBackendWeb.RoomChannel do
       Registry.register(MinesweeperBackendWeb.RoomRegistry, {room.id, user_id}, nil)
       send(self(), {:after_join, room.id})
 
-      {:ok, assign(socket, :room_id, room.id)}
+      {:ok,
+       socket
+       |> assign(:room_id, room.id)
+       |> assign(:welcome, welcome_payload())}
     else
       {:error, :not_found} -> {:error, %{code: :not_found, reason: "room not found"}}
     end
+  end
+
+  defp welcome_payload do
+    app = :minesweeper_backend
+
+    %{
+      pingInterval: Application.get_env(app, :socket_ping_interval_ms, 10_000),
+      pongTimeout: Application.get_env(app, :socket_pong_timeout_ms, 3_000)
+    }
   end
 
   @impl true

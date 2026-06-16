@@ -18,7 +18,7 @@ defmodule MinesweeperBackend.Game do
   turn" bookkeeping field.
   """
 
-  alias MinesweeperBackend.{Redix, Rooms}
+  alias MinesweeperBackend.{Base85, Redix}
 
   @game_prefix "room:"
   @game_suffix ":game"
@@ -234,16 +234,22 @@ defmodule MinesweeperBackend.Game do
   # ---------------------------------------------------------------------------
 
   @doc """
-  Encodes a bitstring to RFC 1924 Base85 (`Base.encode85/2`).
+  Encodes a bitstring to RFC 1924 Base85. The bitstring is padded
+  with zero bits to a multiple of 4 bytes so `Base85.encode/1` can
+  chunk it cleanly.
   """
-  def encode_board(bits), do: Base.encode85(bits)
+  def encode_board(bits) when is_binary(bits) do
+    pad = (-byte_size(bits)) |> rem(4) |> Kernel.+(4) |> rem(4)
+    padded = bits <> :binary.copy(<<0>>, pad)
+    Base85.encode(padded)
+  end
 
   @doc """
   Decodes an RFC 1924 Base85 string back to its original bitstring.
+  Returns `{:ok, bits}` or `{:error, reason}`.
   """
   def decode_board(encoded) when is_binary(encoded) do
-    {:ok, decoded} = Base.decode85(encoded)
-    decoded
+    Base85.decode(encoded)
   end
 
   # ---------------------------------------------------------------------------

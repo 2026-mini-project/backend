@@ -3,6 +3,7 @@ defmodule MinesweeperBackendWeb.Endpoint do
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
+  plug MinesweeperBackendWeb.Plugs.CORS
 
   plug Plug.Parsers,
     parsers: [:urlencoded, :json],

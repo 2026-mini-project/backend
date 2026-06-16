@@ -12,9 +12,16 @@ room_max_players =
   System.get_env("ROOM_MAX_PLAYERS", "2")
   |> String.to_integer()
 
+cors_allowed_origins =
+  "CORS_ORIGINS"
+  |> System.get_env("*")
+  |> String.split(",", trim: true)
+  |> Enum.map(&String.trim/1)
+
 config :minesweeper_backend,
   session_ttl_seconds: session_ttl,
-  room_max_players: room_max_players
+  room_max_players: room_max_players,
+  cors_allowed_origins: cors_allowed_origins
 
 redis_url = System.get_env("REDIS_URL", "redis://localhost:6379")
 
@@ -53,5 +60,6 @@ if config_env() == :prod do
       ip: {0, 0, 0, 0, 0, 0, 0, 0},
       port: port
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    check_origin: if(cors_allowed_origins == ["*"], do: false, else: cors_allowed_origins)
 end

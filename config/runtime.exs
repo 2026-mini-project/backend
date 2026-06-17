@@ -21,6 +21,7 @@ cors_allowed_origins =
 config :minesweeper_backend,
   session_ttl_seconds: session_ttl,
   room_max_players: room_max_players,
+  storage_driver: System.get_env("STORAGE_DRIVER", "database"),
   cors_allowed_origins: cors_allowed_origins
 
 redis_url = System.get_env("REDIS_URL", "redis://localhost:6379")

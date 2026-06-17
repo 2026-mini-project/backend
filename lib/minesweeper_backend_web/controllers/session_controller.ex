@@ -6,9 +6,9 @@ defmodule MinesweeperBackendWeb.SessionController do
   alias MinesweeperBackendWeb.API.{APIError, APIUser, CreateSessionRequest}
   alias MinesweeperBackendWeb.{FallbackController, SessionJSON}
 
-  action_fallback FallbackController
+  action_fallback(FallbackController)
 
-  operation :show,
+  operation(:show,
     tags: ["session"],
     summary: "Fetch the current user",
     operation_id: "getSession",
@@ -23,13 +23,13 @@ defmodule MinesweeperBackendWeb.SessionController do
         content: %{"application/json" => %OpenApiSpex.MediaType{schema: APIError}}
       }
     ]
+  )
 
-  operation :create,
+  operation(:create,
     tags: ["session"],
     summary: "Create a new session",
     operation_id: "createSession",
-    request_body:
-      {"Request body", "application/json", CreateSessionRequest, required: true},
+    request_body: {"Request body", "application/json", CreateSessionRequest, required: true},
     responses: [
       created: %OpenApiSpex.Response{
         description: "Session created",
@@ -40,8 +40,9 @@ defmodule MinesweeperBackendWeb.SessionController do
         content: %{"application/json" => %OpenApiSpex.MediaType{schema: APIError}}
       }
     ]
+  )
 
-  operation :refresh,
+  operation(:refresh,
     tags: ["session"],
     summary: "Refresh the current session's TTL",
     operation_id: "refreshSession",
@@ -56,6 +57,7 @@ defmodule MinesweeperBackendWeb.SessionController do
         content: %{"application/json" => %OpenApiSpex.MediaType{schema: APIError}}
       }
     ]
+  )
 
   def show(conn, _params) do
     user = conn.assigns.current_user
@@ -66,8 +68,7 @@ defmodule MinesweeperBackendWeb.SessionController do
   end
 
   def create(conn, params) do
-    with {:ok, name} <- fetch_name(params),
-         {:ok, user} <- Accounts.create_session(%{name: name}) do
+    with {:ok, user} <- Accounts.create_session(params) do
       conn
       |> put_status(:created)
       |> put_view(json: SessionJSON)
@@ -84,7 +85,4 @@ defmodule MinesweeperBackendWeb.SessionController do
       |> render(:show, user: user)
     end
   end
-
-  defp fetch_name(%{"name" => name}) when is_binary(name) and name != "", do: {:ok, name}
-  defp fetch_name(_), do: {:error, "name is required"}
 end

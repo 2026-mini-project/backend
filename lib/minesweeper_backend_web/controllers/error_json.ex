@@ -9,6 +9,7 @@ defmodule MinesweeperBackendWeb.ErrorJSON do
   def render("400.json", _assigns), do: %{message: "bad request"}
   def render("401.json", _assigns), do: %{message: "unauthorized"}
   def render("500.json", _assigns), do: %{message: "internal server error"}
+  def render("503.json", _assigns), do: %{message: "service unavailable"}
 
   def render(template, _assigns) do
     %{message: Phoenix.Controller.status_message_from_template(template)}

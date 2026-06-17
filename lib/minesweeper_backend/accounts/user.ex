@@ -15,7 +15,7 @@ defmodule MinesweeperBackend.Accounts.User do
   @derive {Jason.Encoder, only: [:id, :name]}
 
   schema "users" do
-    field :name, :string
+    field(:name, :string)
     timestamps(type: :utc_datetime)
   end
 
@@ -23,6 +23,7 @@ defmodule MinesweeperBackend.Accounts.User do
     user
     |> cast(attrs, [:name])
     |> validate_required([:name])
-    |> validate_length(:name, min: 1, max: 32)
+    |> validate_length(:name, min: 5, max: 32)
+    |> unique_constraint(:name)
   end
 end

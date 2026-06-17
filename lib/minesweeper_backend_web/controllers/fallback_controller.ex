@@ -31,6 +31,13 @@ defmodule MinesweeperBackendWeb.FallbackController do
     |> render(:error, message: "bad request")
   end
 
+  def call(conn, {:error, :service_unavailable}) do
+    conn
+    |> put_status(:service_unavailable)
+    |> put_view(json: ErrorJSON)
+    |> render(:error, message: "service unavailable")
+  end
+
   def call(conn, {:error, message}) when is_binary(message) do
     conn
     |> put_status(:bad_request)

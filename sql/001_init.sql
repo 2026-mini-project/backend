@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS users_name_index ON users (name);
+
 -- ---------------------------------------------------------------------
 -- rooms
 --
@@ -37,12 +39,14 @@ CREATE TABLE IF NOT EXISTS rooms (
     name        VARCHAR(64) NOT NULL,
     owner_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     max_players INT         NOT NULL DEFAULT 2,
+    is_private  BOOLEAN     NOT NULL DEFAULT FALSE,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT  rooms_max_players_positive CHECK (max_players > 0)
 );
 
 CREATE INDEX IF NOT EXISTS rooms_owner_id_index ON rooms (owner_id);
+CREATE INDEX IF NOT EXISTS rooms_is_private_index ON rooms (is_private);
 
 -- ---------------------------------------------------------------------
 -- schema_migrations
@@ -58,4 +62,12 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 INSERT INTO schema_migrations (version)
 VALUES (20260608000001)
+ON CONFLICT (version) DO NOTHING;
+
+INSERT INTO schema_migrations (version)
+VALUES (20260617000001)
+ON CONFLICT (version) DO NOTHING;
+
+INSERT INTO schema_migrations (version)
+VALUES (20260617000002)
 ON CONFLICT (version) DO NOTHING;

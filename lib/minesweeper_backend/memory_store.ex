@@ -16,6 +16,7 @@ defmodule MinesweeperBackend.MemoryStore do
   def create_room(owner_id, attrs),
     do: GenServer.call(__MODULE__, {:create_room, owner_id, attrs})
 
+  def list_public_rooms, do: GenServer.call(__MODULE__, :list_public_rooms)
   def fetch_room(id), do: GenServer.call(__MODULE__, {:fetch_room, id})
   def room_full?(id), do: GenServer.call(__MODULE__, {:room_full?, id})
 
@@ -88,6 +89,16 @@ defmodule MinesweeperBackend.MemoryStore do
     end
   end
 
+  def handle_call(:list_public_rooms, _from, state) do
+    rooms =
+      state.rooms
+      |> Map.values()
+      |> Enum.reject(& &1.is_private)
+      |> Enum.sort_by(& &1.inserted_at, {:desc, DateTime})
+
+    {:reply, rooms, state}
+  end
+
   def handle_call({:fetch_room, id}, _from, state) do
     case Map.fetch(state.rooms, id) do
       {:ok, room} -> {:reply, {:ok, room}, state}
@@ -146,6 +157,7 @@ defmodule MinesweeperBackend.MemoryStore do
         "max_players",
         Application.get_env(:minesweeper_backend, :room_max_players, 2)
       )
+      |> normalize_private_attr()
 
     %Room{id: Ecto.UUID.generate()}
     |> Room.changeset(attrs)
@@ -159,6 +171,14 @@ defmodule MinesweeperBackend.MemoryStore do
   end
 
   defp timestamp(error), do: error
+
+  defp normalize_private_attr(%{"private" => private} = attrs) do
+    attrs
+    |> Map.delete("private")
+    |> Map.put("is_private", private)
+  end
+
+  defp normalize_private_attr(attrs), do: attrs
 
   defp nickname_taken?(state, name) do
     Enum.any?(state.users, fn {_id, user} -> user.name == name end)

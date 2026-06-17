@@ -8,6 +8,26 @@ defmodule MinesweeperBackendWeb.RoomController do
 
   action_fallback FallbackController
 
+  operation :index,
+    tags: ["rooms"],
+    summary: "List public rooms",
+    operation_id: "listRooms",
+    security: [%{"SessionId" => []}],
+    responses: [
+      ok: %OpenApiSpex.Response{
+        description: "Public rooms",
+        content: %{
+          "application/json" => %OpenApiSpex.MediaType{
+            schema: %OpenApiSpex.Schema{type: :array, items: APIRoom}
+          }
+        }
+      },
+      unauthorized: %OpenApiSpex.Response{
+        description: "No or invalid session",
+        content: %{"application/json" => %OpenApiSpex.MediaType{schema: APIError}}
+      }
+    ]
+
   operation :show,
     tags: ["rooms"],
     summary: "Fetch a room by id",
@@ -58,6 +78,14 @@ defmodule MinesweeperBackendWeb.RoomController do
       }
     ]
 
+  def index(conn, _params) do
+    rooms = Rooms.list_public_rooms()
+
+    conn
+    |> put_view(json: RoomJSON)
+    |> render(:index, rooms: rooms, full?: &Rooms.full?/1)
+  end
+
   def show(conn, %{"id" => id}) do
     with {:ok, room} <- Rooms.fetch_room(id) do
       conn
@@ -70,7 +98,8 @@ defmodule MinesweeperBackendWeb.RoomController do
     user = conn.assigns.current_user
 
     with {:ok, name} <- fetch_name(params),
-         {:ok, room} <- Rooms.create_room(user.id, %{"name" => name}) do
+         {:ok, private} <- fetch_private(params),
+         {:ok, room} <- Rooms.create_room(user.id, %{"name" => name, "private" => private}) do
       conn
       |> put_status(:created)
       |> put_view(json: RoomJSON)
@@ -80,4 +109,8 @@ defmodule MinesweeperBackendWeb.RoomController do
 
   defp fetch_name(%{"name" => name}) when is_binary(name) and name != "", do: {:ok, name}
   defp fetch_name(_), do: {:error, "name is required"}
+
+  defp fetch_private(%{"private" => private}) when is_boolean(private), do: {:ok, private}
+  defp fetch_private(%{"private" => _}), do: {:error, "private must be a boolean"}
+  defp fetch_private(_), do: {:ok, false}
 end

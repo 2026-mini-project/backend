@@ -13,6 +13,7 @@ defmodule MinesweeperBackend.Rooms do
 
   alias MinesweeperBackend.{MemoryStore, Repo, Redix}
   alias MinesweeperBackend.Rooms.Room
+  import Ecto.Query
 
   @members_prefix "room:"
   @members_suffix ":members"
@@ -36,6 +37,7 @@ defmodule MinesweeperBackend.Rooms do
       attrs
       |> Map.put_new("owner_id", owner_id)
       |> Map.put_new("max_players", max_players)
+      |> normalize_private_attr()
 
     %Room{}
     |> Room.changeset(full_attrs)
@@ -48,6 +50,18 @@ defmodule MinesweeperBackend.Rooms do
       error ->
         error
     end
+  end
+
+  @doc "Lists public rooms ordered from newest to oldest."
+  def list_public_rooms do
+    if memory_storage?(), do: MemoryStore.list_public_rooms(), else: list_public_rooms_with_repo()
+  end
+
+  defp list_public_rooms_with_repo do
+    Room
+    |> where([room], room.is_private == false)
+    |> order_by([room], desc: room.inserted_at)
+    |> Repo.all()
   end
 
   @doc "Fetches a room by id. Returns `{:ok, room}` or `{:error, :not_found}`."
@@ -172,6 +186,14 @@ defmodule MinesweeperBackend.Rooms do
 
   defp members_key(room_id), do: @members_prefix <> room_id <> @members_suffix
   defp ready_key(room_id), do: @ready_prefix <> room_id <> @ready_suffix
+
+  defp normalize_private_attr(%{"private" => private} = attrs) do
+    attrs
+    |> Map.delete("private")
+    |> Map.put("is_private", private)
+  end
+
+  defp normalize_private_attr(attrs), do: attrs
 
   defp memory_storage? do
     Application.get_env(:minesweeper_backend, :storage_driver) == "memory"

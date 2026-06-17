@@ -24,6 +24,7 @@ defmodule MinesweeperBackendWeb.Router do
 
     get("/session", SessionController, :show)
     post("/session/refresh", SessionController, :refresh)
+    get("/rooms", RoomController, :index)
     get("/rooms/:id", RoomController, :show)
     post("/rooms", RoomController, :create)
   end

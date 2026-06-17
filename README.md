@@ -38,6 +38,7 @@ type APIRoom = {
     "id": string,
     "name": string,
     "owner": string, // SessionId임
+    "private": boolean, // 비공개 방인지 여부
     "full": boolean // 방이 꽉 찼는지 여부
 };
 ```
@@ -113,6 +114,21 @@ type APIRoom = {
 
 [APIUser](#apiuser)
 
+## GET /rooms
+
+공개 방 목록을 가져오는 API  
+비공개 방은 목록에 나오지 않음
+
+### Request
+
+|헤더|타입|
+|-|-|
+|Authorization|sessionId(string)|
+
+### Response
+
+[APIRoom](#apiroom)[]
+
 ## GET /rooms/:id
 
 id를 가진 방을 가져오는 API
@@ -139,9 +155,12 @@ id를 가진 방을 가져오는 API
 
 ```json
 {
-    "name": "string"
+    "name": "string",
+    "private": false
 }
 ```
+
+`private` 생략 시 `false`
 
 ### Response
 

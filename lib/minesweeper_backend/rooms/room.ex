@@ -13,6 +13,7 @@ defmodule MinesweeperBackend.Rooms.Room do
 
   schema "rooms" do
     field :name, :string
+    field :is_private, :boolean, default: false
     field :max_players, :integer, default: 2
 
     belongs_to :owner, User, foreign_key: :owner_id
@@ -22,7 +23,7 @@ defmodule MinesweeperBackend.Rooms.Room do
 
   def changeset(room, attrs) do
     room
-    |> cast(attrs, [:name, :owner_id, :max_players])
+    |> cast(attrs, [:name, :owner_id, :max_players, :is_private])
     |> validate_required([:name, :owner_id, :max_players])
     |> validate_length(:name, min: 1, max: 64)
     |> validate_number(:max_players, greater_than: 0, less_than_or_equal_to: 8)

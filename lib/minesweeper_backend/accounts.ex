@@ -143,7 +143,7 @@ defmodule MinesweeperBackend.Accounts do
   end
 
   defp put_session_cache(user_id) do
-    ttl = Application.get_env(:minesweeper_backend, :session_ttl_seconds, 86_400)
+    ttl = Application.get_env(:minesweeper_backend, :session_ttl_seconds, 3_600)
 
     case Redix.command(["SET", @session_prefix <> user_id, user_id, "EX", Integer.to_string(ttl)]) do
       {:ok, _} -> :ok

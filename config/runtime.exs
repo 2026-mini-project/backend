@@ -5,7 +5,7 @@ if System.get_env("PHX_SERVER") do
 end
 
 session_ttl =
-  System.get_env("SESSION_TTL_SECONDS", "86400")
+  System.get_env("SESSION_TTL_SECONDS", "3600")
   |> String.to_integer()
 
 room_max_players =

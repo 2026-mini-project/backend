@@ -14,7 +14,7 @@ config :minesweeper_backend, MinesweeperBackendWeb.Endpoint,
   pubsub_server: MinesweeperBackend.PubSub
 
 config :minesweeper_backend,
-  session_ttl_seconds: 86_400,
+  session_ttl_seconds: 3_600,
   room_max_players: 2,
   cors_allowed_origins: ["*"],
   socket_identify_timeout_ms: 5_000,

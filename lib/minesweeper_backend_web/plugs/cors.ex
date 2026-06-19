@@ -3,8 +3,8 @@ defmodule MinesweeperBackendWeb.Plugs.CORS do
 
   import Plug.Conn
 
-  @allowed_methods "GET, POST, OPTIONS"
-  @allowed_headers "authorization, content-type"
+  @allowed_methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  @allowed_headers "authorization, content-type, accept, x-requested-with"
   @max_age "86400"
 
   def init(opts), do: opts

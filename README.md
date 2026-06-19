@@ -93,6 +93,20 @@ type APIRoom = {
 
 [APIUser](#apiuser)
 
+## DELETE /session
+
+현재 세션을 삭제하는 API
+
+### Request
+
+|헤더|타입|
+|-|-|
+|Authorization|sessionId(string)|
+
+### Response
+
+204 No Content
+
 ## POST /session
 
 세션을 새로 생성하는 API  
@@ -193,4 +207,3 @@ sudo apt-get install --reinstall erlang-public-key
 | `boardClick`    | `boardClick {x,y,by}`, 다음 user에 `turn` | 현재 턴 user만 허용, 아니면 `error`           |
 | `gameClear`     | `gameClear {winner: <APIUser>}`           | status가 `:cleared`로 전환, 이후 `startGame` 가능 |
 | `ping`          | `pong {reply, echo}`                      | heartbeat                                    |
-

@@ -59,6 +59,22 @@ defmodule MinesweeperBackendWeb.SessionController do
     ]
   )
 
+  operation(:delete,
+    tags: ["session"],
+    summary: "Delete the current session",
+    operation_id: "deleteSession",
+    security: [%{"SessionId" => []}],
+    responses: [
+      no_content: %OpenApiSpex.Response{
+        description: "Session deleted"
+      },
+      unauthorized: %OpenApiSpex.Response{
+        description: "No or invalid session",
+        content: %{"application/json" => %OpenApiSpex.MediaType{schema: APIError}}
+      }
+    ]
+  )
+
   def show(conn, _params) do
     user = conn.assigns.current_user
 
@@ -83,6 +99,14 @@ defmodule MinesweeperBackendWeb.SessionController do
       conn
       |> put_view(json: SessionJSON)
       |> render(:show, user: user)
+    end
+  end
+
+  def delete(conn, _params) do
+    user = conn.assigns.current_user
+
+    with :ok <- Accounts.delete_session(user.id) do
+      send_resp(conn, :no_content, "")
     end
   end
 end

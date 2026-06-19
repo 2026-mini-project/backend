@@ -12,6 +12,7 @@ defmodule MinesweeperBackend.MemoryStore do
   def nickname_taken?(name), do: GenServer.call(__MODULE__, {:nickname_taken?, name})
   def fetch_user(id), do: GenServer.call(__MODULE__, {:fetch_user, id})
   def refresh_session(id), do: GenServer.call(__MODULE__, {:refresh_session, id})
+  def delete_session(id), do: GenServer.call(__MODULE__, {:delete_session, id})
 
   def create_room(owner_id, attrs),
     do: GenServer.call(__MODULE__, {:create_room, owner_id, attrs})
@@ -69,6 +70,21 @@ defmodule MinesweeperBackend.MemoryStore do
   def handle_call({:refresh_session, id}, _from, state) do
     if Map.has_key?(state.users, id) do
       {:reply, :ok, put_in(state, [:sessions, id], id)}
+    else
+      {:reply, {:error, :unauthorized}, state}
+    end
+  end
+
+  def handle_call({:delete_session, id}, _from, state) do
+    if Map.has_key?(state.users, id) do
+      state =
+        state
+        |> update_in([:users], &Map.delete(&1, id))
+        |> update_in([:sessions], &Map.delete(&1, id))
+        |> remove_user_from_sets(:members, id)
+        |> remove_user_from_sets(:ready, id)
+
+      {:reply, :ok, state}
     else
       {:reply, {:error, :unauthorized}, state}
     end
@@ -182,5 +198,11 @@ defmodule MinesweeperBackend.MemoryStore do
 
   defp nickname_taken?(state, name) do
     Enum.any?(state.users, fn {_id, user} -> user.name == name end)
+  end
+
+  defp remove_user_from_sets(state, key, user_id) do
+    update_in(state, [key], fn sets ->
+      Map.new(sets, fn {id, user_ids} -> {id, MapSet.delete(user_ids, user_id)} end)
+    end)
   end
 end

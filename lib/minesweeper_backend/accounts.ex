@@ -87,6 +87,44 @@ defmodule MinesweeperBackend.Accounts do
   end
 
   @doc """
+  Deletes an existing session.
+
+  In this application the user row is the session's source of truth, so
+  logout removes both the Redis cache entry and the user record.
+  """
+  def delete_session(nil), do: {:error, :unauthorized}
+  def delete_session(""), do: {:error, :unauthorized}
+
+  def delete_session(session_id) when is_binary(session_id) do
+    if memory_storage?() do
+      delete_memory_session(session_id)
+    else
+      delete_repo_session(session_id)
+    end
+  end
+
+  defp delete_memory_session(session_id) do
+    with :ok <- validate_uuid(session_id) do
+      MemoryStore.delete_session(session_id)
+    else
+      _ -> {:error, :unauthorized}
+    end
+  end
+
+  defp delete_repo_session(session_id) do
+    with :ok <- validate_uuid(session_id),
+         %User{} = user <- Repo.get(User, session_id),
+         {:ok, _user} <- Repo.delete(user) do
+      delete_session_cache(session_id)
+      :ok
+    else
+      _ -> {:error, :unauthorized}
+    end
+  rescue
+    DBConnection.ConnectionError -> {:error, :service_unavailable}
+  end
+
+  @doc """
   Looks up the user behind a session id.
 
   Tries Redis first; if missing, falls back to Postgres and rehydrates
@@ -146,6 +184,13 @@ defmodule MinesweeperBackend.Accounts do
     ttl = Application.get_env(:minesweeper_backend, :session_ttl_seconds, 3_600)
 
     case Redix.command(["SET", @session_prefix <> user_id, user_id, "EX", Integer.to_string(ttl)]) do
+      {:ok, _} -> :ok
+      _ -> :ok
+    end
+  end
+
+  defp delete_session_cache(session_id) do
+    case Redix.command(["DEL", @session_prefix <> session_id]) do
       {:ok, _} -> :ok
       _ -> :ok
     end

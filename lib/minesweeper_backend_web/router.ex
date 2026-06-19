@@ -23,6 +23,7 @@ defmodule MinesweeperBackendWeb.Router do
     pipe_through([:api, :authenticated])
 
     get("/session", SessionController, :show)
+    delete("/session", SessionController, :delete)
     post("/session/refresh", SessionController, :refresh)
     get("/rooms", RoomController, :index)
     get("/rooms/:id", RoomController, :show)

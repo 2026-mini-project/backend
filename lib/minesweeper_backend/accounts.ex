@@ -28,7 +28,7 @@ defmodule MinesweeperBackend.Accounts do
         do: MemoryStore.create_user(attrs),
         else: create_session_with_repo(attrs)
     else
-      true -> {:error, "nickname already exists"}
+      true -> {:error, "이미 사용 중인 닉네임입니다"}
       error -> error
     end
   end
@@ -162,14 +162,14 @@ defmodule MinesweeperBackend.Accounts do
     do: validate_nickname_value(name)
 
   defp validate_nickname(%{name: name}) when is_binary(name), do: validate_nickname_value(name)
-  defp validate_nickname(_), do: {:error, "nickname is required"}
+  defp validate_nickname(_), do: {:error, "닉네임을 입력해야 합니다"}
 
   defp validate_nickname_value(name) do
     name = String.trim(name)
 
     cond do
-      name == "" -> {:error, "nickname is required"}
-      String.length(name) <= 4 -> {:error, "nickname must be longer than 4 characters"}
+      name == "" -> {:error, "닉네임을 입력해야 합니다"}
+      String.length(name) <= 4 -> {:error, "닉네임은 5자 이상이어야 합니다"}
       true -> {:ok, name}
     end
   end

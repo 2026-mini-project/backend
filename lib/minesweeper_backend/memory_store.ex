@@ -52,7 +52,7 @@ defmodule MinesweeperBackend.MemoryStore do
 
       {:reply, {:ok, user}, state}
     else
-      true -> {:reply, {:error, "nickname already exists"}, state}
+      true -> {:reply, {:error, "이미 사용 중인 닉네임입니다"}, state}
       error -> {:reply, error, state}
     end
   end

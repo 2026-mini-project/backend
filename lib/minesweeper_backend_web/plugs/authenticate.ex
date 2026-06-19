@@ -25,7 +25,7 @@ defmodule MinesweeperBackendWeb.Plugs.Authenticate do
       {:error, _} ->
         conn
         |> put_status(:unauthorized)
-        |> json(%{message: "unauthorized"})
+        |> json(%{message: "인증이 필요합니다"})
         |> halt()
     end
   end

@@ -108,9 +108,9 @@ defmodule MinesweeperBackendWeb.RoomController do
   end
 
   defp fetch_name(%{"name" => name}) when is_binary(name) and name != "", do: {:ok, name}
-  defp fetch_name(_), do: {:error, "name is required"}
+  defp fetch_name(_), do: {:error, "방 이름을 입력해야 합니다"}
 
   defp fetch_private(%{"private" => private}) when is_boolean(private), do: {:ok, private}
-  defp fetch_private(%{"private" => _}), do: {:error, "private must be a boolean"}
+  defp fetch_private(%{"private" => _}), do: {:error, "private 값은 참/거짓이어야 합니다"}
   defp fetch_private(_), do: {:ok, false}
 end

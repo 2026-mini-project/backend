@@ -15,6 +15,6 @@ defmodule MinesweeperBackendWeb.API.APIError do
       message: %OpenApiSpex.Schema{type: :string, description: "Human-readable error."}
     },
     required: [:message],
-    example: %{message: "unauthorized"}
+    example: %{message: "인증이 필요합니다"}
   })
 end

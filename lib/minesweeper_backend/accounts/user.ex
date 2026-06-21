@@ -16,14 +16,26 @@ defmodule MinesweeperBackend.Accounts.User do
 
   schema "users" do
     field(:name, :string)
+    field(:expires_at, :utc_datetime_usec)
     timestamps(type: :utc_datetime)
   end
 
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:name])
-    |> validate_required([:name])
+    |> cast(attrs, [:name, :expires_at])
+    |> validate_required([:name, :expires_at])
     |> validate_length(:name, min: 5, max: 32)
     |> unique_constraint(:name)
+  end
+
+  @doc """
+  Changeset used to extend the lifetime of an existing session. Only
+  the `expires_at` field is mutable; the rest is part of the session
+  identity.
+  """
+  def refresh_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:expires_at])
+    |> validate_required([:expires_at])
   end
 end

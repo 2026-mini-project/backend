@@ -45,6 +45,8 @@ defmodule MinesweeperBackend.Accounts do
   end
 
   defp insert_user(attrs) do
+    attrs = Map.put(attrs, "expires_at", future_expiration())
+
     %User{}
     |> User.changeset(attrs)
     |> Repo.insert()
@@ -79,10 +81,26 @@ defmodule MinesweeperBackend.Accounts do
   defp refresh_repo_session(session_id) do
     with :ok <- validate_uuid(session_id),
          {:ok, user_id} <- lookup_session(session_id),
+         :ok <- extend_user_expiration(user_id),
          :ok <- put_session_cache(user_id) do
       :ok
     else
       _ -> {:error, :unauthorized}
+    end
+  end
+
+  defp extend_user_expiration(user_id) do
+    case Repo.get(User, user_id) do
+      nil ->
+        {:error, :unauthorized}
+
+      %User{} = user ->
+        case Repo.update(
+               User.refresh_changeset(user, %{"expires_at" => future_expiration()})
+             ) do
+          {:ok, _user} -> :ok
+          _ -> {:error, :unauthorized}
+        end
     end
   end
 
@@ -167,9 +185,15 @@ defmodule MinesweeperBackend.Accounts do
           nil ->
             {:error, :unauthorized}
 
-          %User{id: id} ->
-            _ = put_session_cache(id)
-            {:ok, id}
+          %User{expires_at: %DateTime{} = expires_at} = user ->
+            if DateTime.compare(expires_at, DateTime.utc_now()) == :gt do
+              _ = put_session_cache(user.id)
+              {:ok, user.id}
+            else
+              _ = Repo.delete(user)
+              delete_session_cache(session_id)
+              {:error, :unauthorized}
+            end
         end
 
       {:ok, user_id} ->
@@ -194,6 +218,11 @@ defmodule MinesweeperBackend.Accounts do
       {:ok, _} -> :ok
       _ -> :ok
     end
+  end
+
+  defp future_expiration do
+    ttl = Application.get_env(:minesweeper_backend, :session_ttl_seconds, 3_600)
+    DateTime.utc_now() |> DateTime.add(ttl, :second)
   end
 
   defp validate_uuid(value) do
@@ -223,7 +252,11 @@ defmodule MinesweeperBackend.Accounts do
     if memory_storage?() do
       MemoryStore.nickname_taken?(name)
     else
-      Repo.exists?(from(user in User, where: user.name == ^name))
+      now = DateTime.utc_now()
+
+      Repo.exists?(
+        from(user in User, where: user.name == ^name and user.expires_at > ^now)
+      )
     end
   rescue
     DBConnection.ConnectionError -> false

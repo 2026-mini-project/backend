@@ -44,6 +44,9 @@ defmodule MinesweeperBackend.MemoryStore do
 
   @impl true
   def handle_call({:create_user, attrs}, _from, state) do
+    state = evict_expired(state)
+    attrs = Map.put(attrs, "expires_at", future_expiration())
+
     with false <- nickname_taken?(state, attrs["name"]),
          {:ok, user} <- build_user(attrs) do
       state =
@@ -59,23 +62,38 @@ defmodule MinesweeperBackend.MemoryStore do
   end
 
   def handle_call({:nickname_taken?, name}, _from, state) do
+    state = evict_expired(state)
     {:reply, nickname_taken?(state, name), state}
   end
 
   def handle_call({:fetch_user, id}, _from, state) do
+    state = evict_expired(state)
     user_id = Map.get(state.sessions, id, id)
     {:reply, Map.fetch(state.users, user_id), state}
   end
 
   def handle_call({:refresh_session, id}, _from, state) do
-    if Map.has_key?(state.users, id) do
-      {:reply, :ok, put_in(state, [:sessions, id], id)}
-    else
-      {:reply, {:error, :unauthorized}, state}
+    state = evict_expired(state)
+
+    case Map.fetch(state.users, id) do
+      {:ok, user} ->
+        refreshed = %{user | expires_at: future_expiration()}
+
+        state =
+          state
+          |> put_in([:users, id], refreshed)
+          |> put_in([:sessions, id], id)
+
+        {:reply, :ok, state}
+
+      :error ->
+        {:reply, {:error, :unauthorized}, state}
     end
   end
 
   def handle_call({:delete_session, id}, _from, state) do
+    state = evict_expired(state)
+
     if Map.has_key?(state.users, id) do
       state =
         state
@@ -197,7 +215,35 @@ defmodule MinesweeperBackend.MemoryStore do
   defp normalize_private_attr(attrs), do: attrs
 
   defp nickname_taken?(state, name) do
-    Enum.any?(state.users, fn {_id, user} -> user.name == name end)
+    now = DateTime.utc_now()
+
+    Enum.any?(state.users, fn {_id, %User{expires_at: exp, name: n}} ->
+      n == name and DateTime.compare(exp, now) == :gt
+    end)
+  end
+
+  defp evict_expired(state) do
+    now = DateTime.utc_now()
+
+    expired_ids =
+      state.users
+      |> Enum.filter(fn {_id, %User{expires_at: exp}} ->
+        DateTime.compare(exp, now) != :gt
+      end)
+      |> Enum.map(&elem(&1, 0))
+
+    Enum.reduce(expired_ids, state, fn id, acc ->
+      acc
+      |> update_in([:users], &Map.delete(&1, id))
+      |> update_in([:sessions], &Map.delete(&1, id))
+      |> remove_user_from_sets(:members, id)
+      |> remove_user_from_sets(:ready, id)
+    end)
+  end
+
+  defp future_expiration do
+    ttl = Application.get_env(:minesweeper_backend, :session_ttl_seconds, 3_600)
+    DateTime.utc_now() |> DateTime.add(ttl, :second)
   end
 
   defp remove_user_from_sets(state, key, user_id) do

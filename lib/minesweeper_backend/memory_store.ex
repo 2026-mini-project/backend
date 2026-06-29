@@ -207,7 +207,7 @@ defmodule MinesweeperBackend.MemoryStore do
       |> Enum.filter(fn {_id, since} -> DateTime.compare(since, cutoff) != :gt end)
       |> Enum.map(&elem(&1, 0))
 
-    state = Enum.reduce(stale_ids, state, &drop_room/2)
+    state = Enum.reduce(stale_ids, state, fn room_id, acc -> drop_room(acc, room_id) end)
     {:reply, :ok, state}
   end
 

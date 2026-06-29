@@ -1,5 +1,8 @@
 import Config
 
+config :minesweeper_backend, :storage_driver, "memory"
+config :minesweeper_backend, :room_empty_ttl_seconds, 0
+
 config :minesweeper_backend, MinesweeperBackend.Repo,
   username: "postgres",
   password: "postgres",

@@ -15,6 +15,7 @@ config :minesweeper_backend, MinesweeperBackendWeb.Endpoint,
 
 config :minesweeper_backend,
   session_ttl_seconds: 3_600,
+  room_empty_ttl_seconds: 3_600,
   room_max_players: 2,
   cors_allowed_origins: ["*"],
   socket_identify_timeout_ms: 5_000,

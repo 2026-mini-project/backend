@@ -11,7 +11,7 @@ defmodule MinesweeperBackend.Rooms do
   just becomes `SADD` / `SREM` against the same set – no schema change.
   """
 
-  alias MinesweeperBackend.{MemoryStore, Repo, Redix}
+  alias MinesweeperBackend.{Game, MemoryStore, Repo, Redix}
   alias MinesweeperBackend.Rooms.Room
   import Ecto.Query
 
@@ -19,6 +19,8 @@ defmodule MinesweeperBackend.Rooms do
   @members_suffix ":members"
   @ready_prefix "room:"
   @ready_suffix ":ready"
+  @empty_since_prefix "room:"
+  @empty_since_suffix ":empty_since"
 
   @doc """
   Creates a room owned by `owner_id`. The owner is immediately added
@@ -61,6 +63,7 @@ defmodule MinesweeperBackend.Rooms do
     Room
     |> where([room], room.is_private == false)
     |> order_by([room], desc: room.inserted_at)
+    |> preload(:owner)
     |> Repo.all()
   end
 
@@ -74,7 +77,7 @@ defmodule MinesweeperBackend.Rooms do
       {:ok, uuid} ->
         case Repo.get(Room, uuid) do
           nil -> {:error, :not_found}
-          %Room{} = room -> {:ok, room}
+          %Room{} = room -> {:ok, Repo.preload(room, :owner)}
         end
 
       :error ->
@@ -109,7 +112,10 @@ defmodule MinesweeperBackend.Rooms do
   end
 
   defp add_redis_member(room_id, user_id) do
-    case Redix.command(["SADD", members_key(room_id), user_id]) do
+    case Redix.pipeline([
+           ["SADD", members_key(room_id), user_id],
+           ["DEL", empty_since_key(room_id)]
+         ]) do
       {:ok, _} -> :ok
       _ -> :ok
     end
@@ -135,7 +141,11 @@ defmodule MinesweeperBackend.Rooms do
   end
 
   defp remove_redis_member(room_id, user_id) do
-    case Redix.command(["SREM", members_key(room_id), user_id]) do
+    case Redix.pipeline([
+           ["SREM", members_key(room_id), user_id],
+           ["SCARD", members_key(room_id)]
+         ]) do
+      {:ok, [_, 0]} -> mark_room_empty(room_id)
       {:ok, _} -> :ok
       _ -> :ok
     end
@@ -184,8 +194,109 @@ defmodule MinesweeperBackend.Rooms do
     end
   end
 
+  @doc """
+  Deletes rooms that have had no members for longer than
+  `room_empty_ttl_seconds`.
+  """
+  def cleanup_stale_empty_rooms do
+    if memory_storage?(),
+      do: MemoryStore.cleanup_stale_empty_rooms(),
+      else: cleanup_stale_empty_rooms_with_redis()
+  end
+
+  defp cleanup_stale_empty_rooms_with_redis do
+    cutoff = empty_room_cutoff_unix()
+
+    list_stale_empty_room_ids(cutoff)
+    |> Enum.each(&delete_room/1)
+
+    :ok
+  end
+
+  @doc "Removes a room and its Redis state."
+  def delete_room(room_id) when is_binary(room_id) do
+    if memory_storage?(),
+      do: MemoryStore.delete_room(room_id),
+      else: delete_room_with_repo(room_id)
+  end
+
+  defp delete_room_with_repo(room_id) do
+    with {:ok, uuid} <- Ecto.UUID.cast(room_id),
+         %Room{} = room <- Repo.get(Room, uuid),
+         {:ok, _} <- Repo.delete(room) do
+      cleanup_room_redis(room_id)
+      :ok
+    else
+      nil -> :ok
+      :error -> :ok
+      error -> error
+    end
+  end
+
+  defp mark_room_empty(room_id) do
+    now = DateTime.utc_now() |> DateTime.to_unix(:second)
+
+    case Redix.command(["SET", empty_since_key(room_id), Integer.to_string(now)]) do
+      {:ok, _} -> :ok
+      _ -> :ok
+    end
+  end
+
+  defp cleanup_room_redis(room_id) do
+    :ok = Game.clear(room_id)
+
+    case Redix.command([
+           "DEL",
+           members_key(room_id),
+           ready_key(room_id),
+           empty_since_key(room_id)
+         ]) do
+      {:ok, _} -> :ok
+      _ -> :ok
+    end
+  end
+
+  defp list_stale_empty_room_ids(cutoff_unix) do
+    case Redix.command(["KEYS", @empty_since_prefix <> "*" <> @empty_since_suffix]) do
+      {:ok, keys} when is_list(keys) ->
+        keys
+        |> Enum.flat_map(&room_id_from_empty_since_key/1)
+        |> Enum.filter(fn room_id ->
+          case Redix.command(["GET", empty_since_key(room_id)]) do
+            {:ok, since} when is_binary(since) ->
+              case Integer.parse(since) do
+                {unix, ""} -> unix <= cutoff_unix
+                _ -> false
+              end
+
+            _ ->
+              false
+          end
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  defp room_id_from_empty_since_key(key) do
+    case String.split(key, ":", parts: 3) do
+      ["room", room_id, "empty_since"] -> [room_id]
+      _ -> []
+    end
+  end
+
+  defp empty_room_cutoff_unix do
+    ttl = Application.get_env(:minesweeper_backend, :room_empty_ttl_seconds, 3_600)
+
+    DateTime.utc_now()
+    |> DateTime.add(-ttl, :second)
+    |> DateTime.to_unix(:second)
+  end
+
   defp members_key(room_id), do: @members_prefix <> room_id <> @members_suffix
   defp ready_key(room_id), do: @ready_prefix <> room_id <> @ready_suffix
+  defp empty_since_key(room_id), do: @empty_since_prefix <> room_id <> @empty_since_suffix
 
   defp normalize_private_attr(%{"private" => private} = attrs) do
     attrs

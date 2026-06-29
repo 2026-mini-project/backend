@@ -13,6 +13,7 @@ defmodule MinesweeperBackend.Application do
          query: Application.get_env(:minesweeper_backend, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: MinesweeperBackend.PubSub},
         {Registry, keys: :duplicate, name: MinesweeperBackendWeb.RoomRegistry},
+        MinesweeperBackend.RoomJanitor,
         redix_child(),
         MinesweeperBackendWeb.Endpoint
       ]

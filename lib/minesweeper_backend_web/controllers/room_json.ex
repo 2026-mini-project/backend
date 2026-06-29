@@ -1,4 +1,6 @@
 defmodule MinesweeperBackendWeb.RoomJSON do
+  alias MinesweeperBackend.Accounts
+  alias MinesweeperBackend.Accounts.User
   alias MinesweeperBackend.Rooms.Room
 
   @doc """
@@ -7,7 +9,7 @@ defmodule MinesweeperBackendWeb.RoomJSON do
       type APIRoom = {
         "id": string,
         "name": string,
-        "owner": string,   // SessionId
+        "owner": string,   // owner nickname
         "private": boolean,
         "full": boolean
       };
@@ -24,9 +26,18 @@ defmodule MinesweeperBackendWeb.RoomJSON do
     %{
       id: room.id,
       name: room.name,
-      owner: room.owner_id,
+      owner: owner_name(room),
       private: room.is_private,
       full: full
     }
+  end
+
+  defp owner_name(%Room{owner: %User{name: name}}) when is_binary(name), do: name
+
+  defp owner_name(%Room{owner_id: owner_id}) do
+    case Accounts.fetch_user_by_session(owner_id) do
+      {:ok, %{name: name}} -> name
+      _ -> nil
+    end
   end
 end

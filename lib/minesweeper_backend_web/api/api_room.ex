@@ -22,8 +22,7 @@ defmodule MinesweeperBackendWeb.API.APIRoom do
       name: %OpenApiSpex.Schema{type: :string, description: "Display name."},
       owner: %OpenApiSpex.Schema{
         type: :string,
-        format: :uuid,
-        description: "Session id of the room owner."
+        description: "Nickname of the room owner."
       },
       private: %OpenApiSpex.Schema{
         type: :boolean,
@@ -38,7 +37,7 @@ defmodule MinesweeperBackendWeb.API.APIRoom do
     example: %{
       id: "00000000-0000-0000-0000-000000000000",
       name: "my-room",
-      owner: "00000000-0000-0000-0000-000000000001",
+      owner: "player-one",
       private: false,
       full: false
     }

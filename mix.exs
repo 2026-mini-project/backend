@@ -37,7 +37,8 @@ defmodule MinesweeperBackend.MixProject do
       {:dns_cluster, "~> 0.1.3"},
       {:bandit, "~> 1.5"},
       {:open_api_spex, "~> 3.16"},
-      {:plug, "~> 1.20", override: true}
+      {:plug, "~> 1.20", override: true},
+      {:cowlib, github: "ninenines/cowlib", ref: "2.17.1", override: true}
     ]
   end
 

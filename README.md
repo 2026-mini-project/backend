@@ -185,6 +185,33 @@ id를 가진 방을 가져오는 API
 **웹소켓 플로우는 FigJam에 해뒀음**  
 [FigJam](https://www.figma.com/board/rfGW6n08AYT5GbXnG5e52J/2026-mini-project)
 
+`/socket`에 연결한 뒤 `"ws"` 토픽 하나만 join한다.  
+모든 메시지는 `["이벤트이름", <JSON 파라미터?>]` 형태이며 JSON 파라미터는 생략 가능하다.
+
+## 연결 순서
+
+1. REST API로 방 정보 조회
+2. WebSocket 연결 (`/socket`, query param 없음)
+3. `"ws"` 채널 join
+4. `identify` → `welcome` (5초 이내, 실패/타임아웃 시 연결 종료)
+5. `ping` / `pong` heartbeat (`pingInterval` ms마다 ping, `pingInterval + 3초` 동안 pong 없으면 클라이언트가 close)
+6. `join` → `joined`
+7. `ready` / `startGame` / 인게임 이벤트
+
+# 이벤트 요약 (WebSocket)
+
+| client → server | server → client | payload |
+|-----------------|-----------------|---------|
+| `identify` | `welcome` | `{sessionId}` / `{pingInterval}` |
+| `ping` | `pong` | (없음) |
+| `join` | `joined` | `{id: roomId}` / `APIUser[]` |
+| `ready` | `ready` | (없음) / `APIUser` |
+| `cancelReady` | `cancelReady` | (없음) / `APIUser` |
+| `startGame` | `gameStarted`, `gameBoard` | (없음) / `{data: base85}` |
+| `boardClick` | `boardClick`, `turn` | `{x, y}` / `{x, y, by}` |
+| `gameClear` | `gameClear` | (없음) / `{winner: APIUser}` |
+| | `error` | `APIError` |
+
 # 개발 환경
 
 `mix compile` 시 시스템 Erlang/OTP의 `public_key` 패키지에서 `include/OTP-PUB-KEY.hrl`이 누락되면
@@ -194,16 +221,3 @@ id를 가진 방을 가져오는 API
 ```sh
 sudo apt-get install --reinstall erlang-public-key
 ```
-
-# 이벤트 요약 (WebSocket)
-
-| client → server | server → client (broadcast)              | 비고                                         |
-|-----------------|-------------------------------------------|----------------------------------------------|
-| `identify`      | `welcome {pingInterval, pongTimeout}`     | 세션 인증 + 핑 간격 협상                       |
-| `join`          | `joined {users}`                          | `{"join":{"id":...}}`                        |
-| `ready`         | `ready <APIUser>`                         |                                              |
-| `cancelReady`   | `cancelReady <APIUser>`                   |                                              |
-| `startGame`     | `gameStarted`, `gameBoard {data: <b85>}`  | owner only, `turn`은 첫 턴 user에게만         |
-| `boardClick`    | `boardClick {x,y,by}`, 다음 user에 `turn` | 현재 턴 user만 허용, 아니면 `error`           |
-| `gameClear`     | `gameClear {winner: <APIUser>}`           | status가 `:cleared`로 전환, 이후 `startGame` 가능 |
-| `ping`          | `pong {reply, echo}`                      | heartbeat                                    |

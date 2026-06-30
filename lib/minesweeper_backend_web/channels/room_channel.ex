@@ -42,29 +42,25 @@ defmodule MinesweeperBackendWeb.RoomChannel do
 
   @impl true
   def join("room:" <> room_id, _params, socket) do
-    user_id = socket.assigns.user_id
+    case socket.assigns[:user_id] do
+      nil ->
+        {:error, %{reason: "identify first"}}
 
+      user_id ->
+        join_room(room_id, user_id, socket)
+    end
+  end
+
+  defp join_room(room_id, user_id, socket) do
     with {:ok, room} <- Rooms.fetch_room(room_id) do
       :ok = Rooms.add_member(room.id, user_id)
       Registry.register(MinesweeperBackendWeb.RoomRegistry, {room.id, user_id}, nil)
       send(self(), {:after_join, room.id})
 
-      {:ok,
-       socket
-       |> assign(:room_id, room.id)
-       |> assign(:welcome, welcome_payload())}
+      {:ok, assign(socket, :room_id, room.id)}
     else
       {:error, :not_found} -> {:error, %{code: :not_found, reason: "room not found"}}
     end
-  end
-
-  defp welcome_payload do
-    app = :minesweeper_backend
-
-    %{
-      pingInterval: Application.get_env(app, :socket_ping_interval_ms, 10_000),
-      pongTimeout: Application.get_env(app, :socket_pong_timeout_ms, 3_000)
-    }
   end
 
   @impl true

@@ -1,21 +1,9 @@
 defmodule MinesweeperBackend.Redix do
   @moduledoc """
-  Thin wrapper around a single `Redix` connection that is supervised
-  as part of the application tree.
+  Thin wrapper around a single `Redix` connection supervised in the app tree.
 
-  Sessions and (eventually) room presence state live in Redis because
-  they are ephemeral, need TTLs, and are read on almost every request.
-  Postgres is the source of truth for `users` and `rooms` rows; Redis
-  is the hot cache / index.
-
-  Keys used by this app:
-
-    * `session:<sid>` -> user_id (string)    TTL = session_ttl_seconds
-    * `room:<room_id>:members` -> SET of session_ids (room membership)
-
-  The membership SET is what powers the `full` boolean on `APIRoom`:
-  the owner is added on `POST /rooms` and other players will be added
-  later from the WebSocket layer when they join.
+  Game state for active rooms is stored in Redis hashes under
+  `room:<room_id>:game`.
   """
 
   @conn __MODULE__

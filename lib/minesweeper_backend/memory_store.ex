@@ -4,6 +4,7 @@ defmodule MinesweeperBackend.MemoryStore do
   use GenServer
 
   alias MinesweeperBackend.Accounts.User
+  alias MinesweeperBackend.Game
   alias MinesweeperBackend.Rooms.Room
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -296,6 +297,8 @@ defmodule MinesweeperBackend.MemoryStore do
   end
 
   defp drop_room(state, room_id) do
+    :ok = Game.clear(room_id)
+
     state
     |> update_in([:rooms], &Map.delete(&1, room_id))
     |> update_in([:members], &Map.delete(&1, room_id))

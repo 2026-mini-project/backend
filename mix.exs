@@ -26,9 +26,7 @@ defmodule MinesweeperBackend.MixProject do
   defp deps do
     [
       {:phoenix, "~> 1.7.14"},
-      {:phoenix_ecto, "~> 4.5"},
-      {:ecto_sql, "~> 3.10"},
-      {:postgrex, ">= 0.0.0"},
+      {:ecto, "~> 3.10"},
       {:jason, "~> 1.4"},
       {:redix, "~> 1.5"},
       {:phoenix_pubsub, "~> 2.1"},
@@ -37,17 +35,13 @@ defmodule MinesweeperBackend.MixProject do
       {:dns_cluster, "~> 0.1.3"},
       {:bandit, "~> 1.5"},
       {:open_api_spex, "~> 3.16"},
-      {:plug, "~> 1.20", override: true},
-      {:cowlib, github: "ninenines/cowlib", ref: "2.17.1", override: true}
+      {:plug, "~> 1.20", override: true}
     ]
   end
 
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup"],
-      "ecto.setup": ["ecto.create", "ecto.migrate"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      "test.db": ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      setup: ["deps.get"],
       test: ["test"]
     ]
   end

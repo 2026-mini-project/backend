@@ -1,24 +1,21 @@
 defmodule MinesweeperBackend.Rooms.Room do
   @moduledoc """
-  A multiplayer game room owned by a user.
+  In-memory multiplayer game room.
   """
 
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias MinesweeperBackend.Accounts.User
-
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
 
-  schema "rooms" do
+  embedded_schema do
     field :name, :string
     field :is_private, :boolean, default: false
     field :max_players, :integer, default: 2
-
-    belongs_to :owner, User, foreign_key: :owner_id
-
-    timestamps(type: :utc_datetime)
+    field :owner_id, :binary_id
+    field :inserted_at, :utc_datetime
+    field :updated_at, :utc_datetime
   end
 
   def changeset(room, attrs) do
@@ -27,6 +24,5 @@ defmodule MinesweeperBackend.Rooms.Room do
     |> validate_required([:name, :owner_id, :max_players])
     |> validate_length(:name, min: 1, max: 64)
     |> validate_number(:max_players, greater_than: 0, less_than_or_equal_to: 8)
-    |> assoc_constraint(:owner)
   end
 end

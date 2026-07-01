@@ -23,30 +23,11 @@ config :minesweeper_backend,
   room_max_players: room_max_players,
   cors_allowed_origins: cors_allowed_origins
 
-if config_env() != :test do
-  config :minesweeper_backend,
-    storage_driver: System.get_env("STORAGE_DRIVER", "database")
-end
-
 redis_url = System.get_env("REDIS_URL", "redis://localhost:6379")
 
 config :minesweeper_backend, :redix, url: redis_url
 
 if config_env() == :prod do
-  database_url =
-    System.get_env("DATABASE_URL") ||
-      raise """
-      environment variable DATABASE_URL is missing.
-      For example: ecto://USER:PASS@HOST/DATABASE
-      """
-
-  maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
-
-  config :minesweeper_backend, MinesweeperBackend.Repo,
-    url: database_url,
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
-    socket_options: maybe_ipv6
-
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||
       raise """

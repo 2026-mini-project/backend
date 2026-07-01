@@ -1,7 +1,6 @@
 import Config
 
 config :minesweeper_backend,
-  ecto_repos: [MinesweeperBackend.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
 config :minesweeper_backend, MinesweeperBackendWeb.Endpoint,

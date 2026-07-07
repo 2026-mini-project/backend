@@ -117,7 +117,7 @@ defmodule MinesweeperBackendWeb.WsChannel do
         {:ok, %{board: board, current_turn: first_turn}} ->
           broadcast_room(room_id, "gameStarted", %{})
           broadcast_room(room_id, "gameBoard", %{data: board})
-          send_turn(room_id, first_turn, user_id)
+          send_turn(room_id, first_turn)
           {:reply, :ok, socket}
 
         {:error, :not_enough_players} ->
@@ -151,7 +151,7 @@ defmodule MinesweeperBackendWeb.WsChannel do
           payload = %{x: x, y: y, by: user_id}
           broadcast_room(room_id, "boardClick", payload, except: self())
           push(socket, "boardClick", payload)
-          send_turn(room_id, next_user_id, user_id)
+          send_turn(room_id, next_user_id)
           {:reply, :ok, socket}
 
         {:error, :not_your_turn} ->
@@ -300,14 +300,7 @@ defmodule MinesweeperBackendWeb.WsChannel do
     end)
   end
 
-  defp send_turn(room_id, turn_user_id, current_user_id) do
-    if turn_user_id == current_user_id do
-      send(self(), {:room_push, "turn", %{}})
-    else
-      case Registry.lookup(MinesweeperBackendWeb.RoomRegistry, {room_id, turn_user_id}) do
-        [{pid, _}] -> send(pid, {:room_push, "turn", %{}})
-        _ -> :ok
-      end
-    end
+  defp send_turn(room_id, turn_user_id) do
+    broadcast_room(room_id, "turn", %{userId: turn_user_id})
   end
 end

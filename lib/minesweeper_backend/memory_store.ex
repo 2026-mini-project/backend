@@ -107,6 +107,7 @@ defmodule MinesweeperBackend.MemoryStore do
         |> update_in([:sessions], &Map.delete(&1, id))
         |> remove_user_from_sets(:members, id)
         |> remove_user_from_sets(:ready, id)
+        |> drop_owned_rooms(id)
 
       {:reply, :ok, state}
     else
@@ -274,7 +275,15 @@ defmodule MinesweeperBackend.MemoryStore do
       |> update_in([:sessions], &Map.delete(&1, id))
       |> remove_user_from_sets(:members, id)
       |> remove_user_from_sets(:ready, id)
+      |> drop_owned_rooms(id)
     end)
+  end
+
+  defp drop_owned_rooms(state, owner_id) do
+    state.rooms
+    |> Enum.filter(fn {_id, %Room{owner_id: oid}} -> oid == owner_id end)
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.reduce(state, &drop_room/2)
   end
 
   defp future_expiration do

@@ -185,32 +185,61 @@ id를 가진 방을 가져오는 API
 **웹소켓 플로우는 FigJam에 해뒀음**  
 [FigJam](https://www.figma.com/board/rfGW6n08AYT5GbXnG5e52J/2026-mini-project)
 
-`/socket`에 연결한 뒤 `"ws"` 토픽 하나만 join한다.  
-모든 메시지는 `["이벤트이름", <JSON 파라미터?>]` 형태이며 JSON 파라미터는 생략 가능하다.
+Phoenix Channel이 아니라 **HTML5 WebSocket API** 기준이다.  
+`event.data`로 받고 `ws.send(...)`로 보낸다.
+
+## 메시지 형식
+
+모든 프레임은 JSON **텍스트** 한 줄이다.
+
+```json
+["이벤트이름"]
+```
+
+또는 payload가 있을 때:
+
+```json
+["이벤트이름", { ... }]
+```
+
+### 클라이언트 예시
+
+```js
+const ws = new WebSocket("ws://localhost:4000/socket");
+
+ws.onopen = () => {
+  ws.send(JSON.stringify(["identify", { sessionId: "..." }]));
+};
+
+ws.onmessage = (event) => {
+  const parsed = JSON.parse(event.data);
+  const [name, payload] = parsed;
+  // payload는 생략된 이벤트면 undefined
+};
+```
 
 ## 연결 순서
 
 1. REST API로 방 정보 조회
-2. WebSocket 연결 (`/socket`, query param 없음)
-3. `"ws"` 채널 join
-4. `identify` → `welcome` (5초 이내, 실패/타임아웃 시 연결 종료)
-5. `ping` / `pong` heartbeat (`pingInterval` ms마다 ping, `pingInterval + 3초` 동안 pong 없으면 클라이언트가 close)
-6. `join` → `joined`
-7. `ready` / `startGame` / 인게임 이벤트
+2. `new WebSocket("ws://<host>/socket")` (query param 없음)
+3. `identify` → `welcome` (5초 이내, 실패/타임아웃 시 연결 종료)
+4. `ping` / `pong` heartbeat (`pingInterval` ms마다 ping, `pingInterval + 3초` 동안 pong 없으면 클라이언트가 close)
+5. `join` → `joined`
+6. `ready` / `startGame` / 인게임 이벤트
 
 # 이벤트 요약 (WebSocket)
 
-| client → server | server → client | payload |
-|-----------------|-----------------|---------|
-| `identify` | `welcome` | `{sessionId}` / `{pingInterval}` |
-| `ping` | `pong` | (없음) |
-| `join` | `joined` | `{id: roomId}` / `APIUser[]` |
-| `ready` | `ready` | (없음) / `APIUser` |
-| `cancelReady` | `cancelReady` | (없음) / `APIUser` |
-| `startGame` | `gameStarted`, `gameBoard` | (없음) / `{data: base85}` |
-| `boardClick` | `boardClick`, `turn` | `{x, y}` / `{x, y, by}` |
-| `gameClear` | `gameClear` | (없음) / `{winner: APIUser}` |
-| | `error` | `APIError` |
+| client → server (`ws.send`) | server → client (`onmessage`) | payload |
+|-----------------------------|-------------------------------|---------|
+| `["identify", {sessionId}]` | `["welcome", {pingInterval}]` | |
+| `["ping"]` | `["pong"]` | (없음) |
+| `["join", {id: roomId}]` | `["joined", APIUser[]]` | |
+| `["ready"]` | `["ready", APIUser]` | |
+| `["cancelReady"]` | `["cancelReady", APIUser]` | |
+| `["startGame"]` | `["gameStarted"]`, `["gameBoard", {data}]` | `{data: base85}` |
+| `["boardClick", {x, y}]` | `["boardClick", {x, y, by}]`, `["turn", {userId}]` | |
+| `["gameClear"]` | `["gameClear", {winner}]` | `{winner: APIUser}` |
+| | `["error", APIError]` | |
 
 # 개발 환경
 

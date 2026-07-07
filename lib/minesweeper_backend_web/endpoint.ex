@@ -12,12 +12,7 @@ defmodule MinesweeperBackendWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
+  plug MinesweeperBackendWeb.Plugs.WsUpgrade
 
   plug MinesweeperBackendWeb.Router
-
-  socket "/socket", MinesweeperBackendWeb.UserSocket,
-    websocket: [
-      connect_info: [:peer_data, :x_headers],
-      timeout: :infinity
-    ]
 end

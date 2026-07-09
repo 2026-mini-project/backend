@@ -7,7 +7,9 @@ defmodule MinesweeperBackendWeb.Plugs.WsUpgrade do
 
   def call(%{request_path: "/socket"} = conn, _opts) do
     if websocket_request?(conn) do
-      WebSockAdapter.upgrade(conn, MinesweeperBackendWeb.WsHandler, %{}, timeout: :infinity)
+      conn
+      |> WebSockAdapter.upgrade(MinesweeperBackendWeb.WsHandler, %{}, timeout: :infinity)
+      |> halt()
     else
       conn
       |> put_resp_content_type("text/plain")

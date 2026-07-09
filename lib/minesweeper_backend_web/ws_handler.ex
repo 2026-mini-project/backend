@@ -20,7 +20,7 @@ defmodule MinesweeperBackendWeb.WsHandler do
   end
 
   @impl WebSock
-  def handle_in({:text, raw}, state), do: dispatch_message(raw, state)
+  def handle_in({raw, opcode: :text}, state) when is_binary(raw), do: dispatch_message(raw, state)
 
   def handle_in(_frame, state), do: {:ok, state}
 
@@ -93,7 +93,7 @@ defmodule MinesweeperBackendWeb.WsHandler do
       state = leave_current_room(state)
 
       :ok = Rooms.add_member(room.id, user_id)
-      :ok = Registry.register(MinesweeperBackendWeb.RoomRegistry, {room.id, user_id}, nil)
+      Registry.register(MinesweeperBackendWeb.RoomRegistry, {room.id, user_id}, nil)
 
       state = Map.put(state, :room_id, room.id)
       broadcast_room(room.id, "joined", list_room_users(room.id))

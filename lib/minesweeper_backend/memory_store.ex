@@ -4,7 +4,6 @@ defmodule MinesweeperBackend.MemoryStore do
   use GenServer
 
   alias MinesweeperBackend.Accounts.User
-  alias MinesweeperBackend.Game
   alias MinesweeperBackend.Rooms.Room
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -43,9 +42,25 @@ defmodule MinesweeperBackend.MemoryStore do
   def cleanup_stale_empty_rooms,
     do: GenServer.call(__MODULE__, :cleanup_stale_empty_rooms)
 
+  def fetch_game(room_id), do: GenServer.call(__MODULE__, {:fetch_game, room_id})
+  def put_game(room_id, game), do: GenServer.call(__MODULE__, {:put_game, room_id, game})
+  def delete_game(room_id), do: GenServer.call(__MODULE__, {:delete_game, room_id})
+
+  def update_game(room_id, fun) when is_function(fun, 1),
+    do: GenServer.call(__MODULE__, {:update_game, room_id, fun})
+
   @impl true
   def init(_) do
-    {:ok, %{users: %{}, sessions: %{}, rooms: %{}, members: %{}, ready: %{}, empty_since: %{}}}
+    {:ok,
+     %{
+       users: %{},
+       sessions: %{},
+       rooms: %{},
+       members: %{},
+       ready: %{},
+       empty_since: %{},
+       games: %{}
+     }}
   end
 
   @impl true
@@ -213,6 +228,29 @@ defmodule MinesweeperBackend.MemoryStore do
     {:reply, :ok, state}
   end
 
+  def handle_call({:fetch_game, room_id}, _from, state) do
+    {:reply, Map.fetch(state.games, room_id), state}
+  end
+
+  def handle_call({:put_game, room_id, game}, _from, state) do
+    {:reply, :ok, put_in(state, [:games, room_id], game)}
+  end
+
+  def handle_call({:delete_game, room_id}, _from, state) do
+    {:reply, :ok, update_in(state, [:games], &Map.delete(&1, room_id))}
+  end
+
+  def handle_call({:update_game, room_id, fun}, _from, state) do
+    case Map.fetch(state.games, room_id) do
+      {:ok, game} ->
+        updated = fun.(game)
+        {:reply, {:ok, updated}, put_in(state, [:games, room_id], updated)}
+
+      :error ->
+        {:reply, :error, state}
+    end
+  end
+
   defp build_user(attrs) do
     %User{id: Ecto.UUID.generate()}
     |> User.changeset(attrs)
@@ -306,12 +344,11 @@ defmodule MinesweeperBackend.MemoryStore do
   end
 
   defp drop_room(state, room_id) do
-    :ok = Game.clear(room_id)
-
     state
     |> update_in([:rooms], &Map.delete(&1, room_id))
     |> update_in([:members], &Map.delete(&1, room_id))
     |> update_in([:ready], &Map.delete(&1, room_id))
     |> update_in([:empty_since], &Map.delete(&1, room_id))
+    |> update_in([:games], &Map.delete(&1, room_id))
   end
 end

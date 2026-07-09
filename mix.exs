@@ -28,7 +28,6 @@ defmodule MinesweeperBackend.MixProject do
       {:phoenix, "~> 1.7.24"},
       {:ecto, "~> 3.10"},
       {:jason, "~> 1.4"},
-      {:redix, "~> 1.5"},
       {:phoenix_pubsub, "~> 2.1"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.1"},

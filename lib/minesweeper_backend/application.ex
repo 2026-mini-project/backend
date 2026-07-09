@@ -12,7 +12,6 @@ defmodule MinesweeperBackend.Application do
       {Phoenix.PubSub, name: MinesweeperBackend.PubSub},
       {Registry, keys: :duplicate, name: MinesweeperBackendWeb.RoomRegistry},
       MinesweeperBackend.RoomJanitor,
-      MinesweeperBackend.Redix,
       MinesweeperBackendWeb.Endpoint
     ]
 

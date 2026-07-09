@@ -3,7 +3,7 @@ defmodule MinesweeperBackend.Rooms do
   Rooms context backed by in-memory storage.
 
   Live membership and ready state live in `MemoryStore`. Game state is
-  stored separately in Redis via `Game`.
+  also stored in `MemoryStore`.
   """
 
   alias MinesweeperBackend.{Game, MemoryStore}

@@ -1,27 +1,19 @@
 defmodule MinesweeperBackend.Game do
   @moduledoc """
-  Game state lives entirely in Redis under `room:<room_id>:game`.
+  Game state lives in `MemoryStore` under each room id.
 
-  Hash fields:
+  Stored fields per game:
 
     * `board_size`     – integer, edge length of the square board
     * `mine_count`     – integer, number of mines
     * `board`          – Base85-encoded bitstring (`"1"` = mine, `"0"` = empty)
     * `current_turn`   – user_id (session id) of the player whose turn it is
-    * `status`         – `:playing` for now; reserved for future
-                         `:won` / `:lost` transitions.
-    * `order`          – comma-joined, sorted list of the two user_ids.
-                         The first entry is the starting turn.
-
-  The order list is computed at game start and stored so we can
-  alternate between the two players without a separate "previous
-  turn" bookkeeping field.
+    * `status`         – `:playing` or `:cleared`
+    * `order`          – sorted list of the two user_ids; first entry starts
+    * `winner`         – user_id of the winner after clear, otherwise `nil`
   """
 
-  alias MinesweeperBackend.{Base85, Redix}
-
-  @game_prefix "room:"
-  @game_suffix ":game"
+  alias MinesweeperBackend.{Base85, MemoryStore}
 
   def board_size, do: Application.get_env(:minesweeper_backend, :game_board_size, 8)
   def mine_count, do: Application.get_env(:minesweeper_backend, :game_mine_count, 10)
@@ -50,25 +42,17 @@ defmodule MinesweeperBackend.Game do
         encoded = encode_board(board)
         [first, second | _] = Enum.sort(members)
 
-        :ok =
-          Redix.command([
-            "HSET",
-            game_key(room_id),
-            "board_size",
-            Integer.to_string(size),
-            "mine_count",
-            Integer.to_string(mines),
-            "board",
-            encoded,
-            "current_turn",
-            first,
-            "status",
-            "playing",
-            "winner",
-            "",
-            "order",
-            Enum.join([first, second], ",")
-          ])
+        game = %{
+          board_size: size,
+          mine_count: mines,
+          board: encoded,
+          current_turn: first,
+          status: :playing,
+          winner: nil,
+          order: [first, second]
+        }
+
+        :ok = MemoryStore.put_game(room_id, game)
 
         {:ok,
          %{
@@ -83,11 +67,9 @@ defmodule MinesweeperBackend.Game do
 
   @doc "Returns the game status (`:playing` / `:cleared` / `nil`)."
   def status(room_id) do
-    case Redix.command(["HGET", game_key(room_id), "status"]) do
-      {:ok, nil} -> nil
-      {:ok, "playing"} -> :playing
-      {:ok, "cleared"} -> :cleared
-      _ -> nil
+    case MemoryStore.fetch_game(room_id) do
+      {:ok, %{status: status}} -> status
+      :error -> nil
     end
   end
 
@@ -107,61 +89,46 @@ defmodule MinesweeperBackend.Game do
         {:error, :not_a_player}
 
       true ->
-        :ok =
-          Redix.command([
-            "HSET",
-            game_key(room_id),
-            "status",
-            "cleared",
-            "winner",
-            user_id
-          ])
+        {:ok, updated} =
+          MemoryStore.update_game(room_id, fn game ->
+            %{game | status: :cleared, winner: user_id}
+          end)
 
-        {:ok, user_id}
+        {:ok, updated.winner}
     end
   end
 
   @doc "Returns the winner of the most recently cleared game, or `nil`."
   def winner(room_id) do
-    case Redix.command(["HGET", game_key(room_id), "winner"]) do
-      {:ok, nil} -> nil
-      {:ok, ""} -> nil
-      {:ok, user_id} -> user_id
+    case MemoryStore.fetch_game(room_id) do
+      {:ok, %{winner: winner}} when is_binary(winner) and winner != "" -> winner
       _ -> nil
     end
   end
 
   @doc "Returns the current turn's user_id, or `nil` if no game is running."
   def current_turn(room_id) do
-    case Redix.command(["HGET", game_key(room_id), "current_turn"]) do
-      {:ok, nil} -> nil
-      {:ok, user_id} -> user_id
-      _ -> nil
+    case MemoryStore.fetch_game(room_id) do
+      {:ok, %{current_turn: user_id}} -> user_id
+      :error -> nil
     end
   end
 
   @doc "Returns the stored `order` list, or `nil` if no game is running."
   def order(room_id) do
-    case Redix.command(["HGET", game_key(room_id), "order"]) do
-      {:ok, nil} -> nil
-      {:ok, list} -> String.split(list, ",", trim: true)
-      _ -> nil
+    case MemoryStore.fetch_game(room_id) do
+      {:ok, %{order: order}} -> order
+      :error -> nil
     end
   end
 
   @doc "Returns the stored board payload (size, mine_count, base85). Nil if no game."
   def board_payload(room_id) do
-    case Redix.command(["HMGET", game_key(room_id), "board_size", "mine_count", "board"]) do
-      {:ok, [size, mines, board]}
-      when is_binary(size) and is_binary(mines) and is_binary(board) ->
-        {:ok,
-         %{
-           board_size: String.to_integer(size),
-           mine_count: String.to_integer(mines),
-           board: board
-         }}
+    case MemoryStore.fetch_game(room_id) do
+      {:ok, %{board_size: size, mine_count: mines, board: board}} ->
+        {:ok, %{board_size: size, mine_count: mines, board: board}}
 
-      _ ->
+      :error ->
         nil
     end
   end
@@ -194,7 +161,12 @@ defmodule MinesweeperBackend.Game do
             case ensure_turn(current, user_id) do
               :ok ->
                 next = next_player(order(room_id), current)
-                :ok = Redix.command(["HSET", game_key(room_id), "current_turn", next])
+
+                {:ok, _} =
+                  MemoryStore.update_game(room_id, fn game ->
+                    %{game | current_turn: next}
+                  end)
+
                 {:ok, :next_turn, next}
 
               {:error, :not_your_turn} = err ->
@@ -205,12 +177,7 @@ defmodule MinesweeperBackend.Game do
   end
 
   @doc "Clears the game state for `room_id` (used when leaving or restarting)."
-  def clear(room_id) do
-    case Redix.command(["DEL", game_key(room_id)]) do
-      {:ok, _} -> :ok
-      _ -> :ok
-    end
-  end
+  def clear(room_id), do: MemoryStore.delete_game(room_id)
 
   # ---------------------------------------------------------------------------
   # board generation
@@ -262,6 +229,4 @@ defmodule MinesweeperBackend.Game do
   defp next_player([a, b], current) when current == a, do: b
   defp next_player([a, b], current) when current == b, do: a
   defp next_player(order, _current), do: hd(order)
-
-  defp game_key(room_id), do: @game_prefix <> room_id <> @game_suffix
 end

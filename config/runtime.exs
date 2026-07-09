@@ -23,10 +23,6 @@ config :minesweeper_backend,
   room_max_players: room_max_players,
   cors_allowed_origins: cors_allowed_origins
 
-redis_url = System.get_env("REDIS_URL", "redis://localhost:6379")
-
-config :minesweeper_backend, :redix, url: redis_url
-
 if config_env() == :prod do
   secret_key_base =
     System.get_env("SECRET_KEY_BASE") ||

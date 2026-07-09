@@ -25,7 +25,7 @@ defmodule MinesweeperBackend.MixProject do
 
   defp deps do
     [
-      {:phoenix, "~> 1.7.14"},
+      {:phoenix, "~> 1.7.24"},
       {:ecto, "~> 3.10"},
       {:jason, "~> 1.4"},
       {:redix, "~> 1.5"},
@@ -35,7 +35,7 @@ defmodule MinesweeperBackend.MixProject do
       {:dns_cluster, "~> 0.1.3"},
       {:bandit, "~> 1.5"},
       {:open_api_spex, "~> 3.16"},
-      {:plug, "~> 1.20", override: true},
+      {:plug, "~> 1.20.2", override: true},
       {:hpax, "~> 1.0.4", override: true}
     ]
   end

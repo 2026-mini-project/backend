@@ -19,17 +19,15 @@ defmodule MinesweeperBackendWeb.Plugs.WsUpgrade do
   def call(conn, _opts), do: conn
 
   defp websocket_request?(conn) do
-    conn = fetch_headers(conn)
-
     upgrade? =
-      conn.req_headers
-      |> Enum.any?(fn {k, v} -> String.downcase(k) == "upgrade" and String.downcase(v) == "websocket" end)
+      conn
+      |> get_req_header("upgrade")
+      |> Enum.any?(&(String.downcase(&1) == "websocket"))
 
     connection? =
-      conn.req_headers
-      |> Enum.any?(fn {k, v} ->
-        String.downcase(k) == "connection" and String.contains?(String.downcase(v), "upgrade")
-      end)
+      conn
+      |> get_req_header("connection")
+      |> Enum.any?(&String.contains?(String.downcase(&1), "upgrade"))
 
     upgrade? and connection?
   end

@@ -28,29 +28,36 @@ defmodule MinesweeperBackend.RoomsTest do
     refute json.owner == user.id
   end
 
-  test "empty room is deleted after cleanup when ttl elapsed" do
+  test "room is deleted immediately when its last member leaves" do
     user = create_user!("leaver")
     room = create_room!(leaver = user)
 
     assert {:ok, _} = Rooms.fetch_room(room.id)
     assert :ok = Rooms.remove_member(room.id, leaver.id)
     assert Rooms.list_members(room.id) == []
-
-    assert :ok = Rooms.cleanup_stale_empty_rooms()
     assert {:error, :not_found} = Rooms.fetch_room(room.id)
   end
 
-  test "rejoining clears empty mark and prevents deletion" do
+  test "room remains while another member is still present" do
     owner = create_user!("owner-one")
     guest = create_user!("guest-two")
     room = create_room!(owner)
 
     assert :ok = Rooms.add_member(room.id, guest.id)
     assert :ok = Rooms.remove_member(room.id, owner.id)
-    assert :ok = Rooms.remove_member(room.id, guest.id)
-
-    assert :ok = Rooms.add_member(room.id, owner.id)
-    assert :ok = Rooms.cleanup_stale_empty_rooms()
     assert {:ok, _} = Rooms.fetch_room(room.id)
+    assert Rooms.list_members(room.id) == [guest.id]
+  end
+
+  test "room is deleted when session deletion removes its last member" do
+    owner = create_user!("session-owner")
+    guest = create_user!("session-guest")
+    room = create_room!(owner, "session-room")
+
+    assert :ok = Rooms.add_member(room.id, guest.id)
+    assert :ok = Rooms.remove_member(room.id, owner.id)
+    assert :ok = Accounts.delete_session(guest.id)
+
+    assert {:error, :not_found} = Rooms.fetch_room(room.id)
   end
 end

@@ -49,6 +49,20 @@ defmodule MinesweeperBackendWeb.WsHandlerTest do
            end)
   end
 
+  test "disconnect deletes a room when the last member leaves" do
+    {:ok, user} = Accounts.create_session(%{"name" => "disconnect-player"})
+    {:ok, room} = Rooms.create_room(user.id, %{"name" => "disconnect-room", "private" => false})
+
+    assert :ok =
+             WsHandler.terminate(:normal, %{
+               user_id: user.id,
+               room_id: room.id,
+               identify_timer: nil
+             })
+
+    assert {:error, :not_found} = Rooms.fetch_room(room.id)
+  end
+
   defp joined_users(room_id) do
     Rooms.list_members(room_id)
     |> Enum.map(fn id ->

@@ -1,7 +1,5 @@
 import Config
 
-config :minesweeper_backend, :room_empty_ttl_seconds, 0
-
 config :minesweeper_backend, MinesweeperBackendWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "test_secret_key_base_test_secret_key_base_test_secret_key_base_test",

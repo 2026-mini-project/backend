@@ -58,7 +58,6 @@ defmodule MinesweeperBackend.MemoryStore do
        rooms: %{},
        members: %{},
        ready: %{},
-       empty_since: %{},
        games: %{}
      }}
   end
@@ -123,6 +122,7 @@ defmodule MinesweeperBackend.MemoryStore do
         |> remove_user_from_sets(:members, id)
         |> remove_user_from_sets(:ready, id)
         |> drop_owned_rooms(id)
+        |> drop_empty_rooms()
 
       {:reply, :ok, state}
     else
@@ -170,9 +170,7 @@ defmodule MinesweeperBackend.MemoryStore do
 
   def handle_call({:add_member, room_id, user_id}, _from, state) do
     state =
-      state
-      |> update_in([:members, room_id], &MapSet.put(&1 || MapSet.new(), user_id))
-      |> update_in([:empty_since], &Map.delete(&1, room_id))
+      update_in(state, [:members, room_id], &MapSet.put(&1 || MapSet.new(), user_id))
 
     {:reply, :ok, state}
   end
@@ -191,7 +189,7 @@ defmodule MinesweeperBackend.MemoryStore do
     state =
       state
       |> put_in([:members, room_id], members)
-      |> maybe_mark_empty(room_id, members)
+      |> drop_room_if_empty(room_id, members)
 
     {:reply, :ok, state}
   end
@@ -216,16 +214,7 @@ defmodule MinesweeperBackend.MemoryStore do
   end
 
   def handle_call(:cleanup_stale_empty_rooms, _from, state) do
-    ttl = Application.get_env(:minesweeper_backend, :room_empty_ttl_seconds, 3_600)
-    cutoff = DateTime.utc_now() |> DateTime.add(-ttl, :second)
-
-    stale_ids =
-      state.empty_since
-      |> Enum.filter(fn {_id, since} -> DateTime.compare(since, cutoff) != :gt end)
-      |> Enum.map(&elem(&1, 0))
-
-    state = Enum.reduce(stale_ids, state, fn room_id, acc -> drop_room(acc, room_id) end)
-    {:reply, :ok, state}
+    {:reply, :ok, drop_empty_rooms(state)}
   end
 
   def handle_call({:fetch_game, room_id}, _from, state) do
@@ -314,6 +303,7 @@ defmodule MinesweeperBackend.MemoryStore do
       |> remove_user_from_sets(:members, id)
       |> remove_user_from_sets(:ready, id)
       |> drop_owned_rooms(id)
+      |> drop_empty_rooms()
     end)
   end
 
@@ -335,12 +325,24 @@ defmodule MinesweeperBackend.MemoryStore do
     end)
   end
 
-  defp maybe_mark_empty(state, room_id, members) do
+  defp drop_room_if_empty(state, room_id, members) do
     if MapSet.size(members) == 0 do
-      put_in(state, [:empty_since, room_id], DateTime.utc_now() |> DateTime.truncate(:second))
+      drop_room(state, room_id)
     else
       state
     end
+  end
+
+  defp drop_empty_rooms(state) do
+    state.rooms
+    |> Map.keys()
+    |> Enum.filter(fn room_id ->
+      state.members
+      |> Map.get(room_id, MapSet.new())
+      |> MapSet.size()
+      |> Kernel.==(0)
+    end)
+    |> Enum.reduce(state, fn room_id, acc -> drop_room(acc, room_id) end)
   end
 
   defp drop_room(state, room_id) do
@@ -348,7 +350,6 @@ defmodule MinesweeperBackend.MemoryStore do
     |> update_in([:rooms], &Map.delete(&1, room_id))
     |> update_in([:members], &Map.delete(&1, room_id))
     |> update_in([:ready], &Map.delete(&1, room_id))
-    |> update_in([:empty_since], &Map.delete(&1, room_id))
     |> update_in([:games], &Map.delete(&1, room_id))
   end
 end

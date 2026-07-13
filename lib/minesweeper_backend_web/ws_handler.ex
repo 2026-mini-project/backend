@@ -276,8 +276,8 @@ defmodule MinesweeperBackendWeb.WsHandler do
     room_id = state[:room_id]
 
     if user_id && room_id do
-      :ok = Rooms.remove_member(room_id, user_id)
       :ok = Rooms.cancel_ready(room_id, user_id)
+      :ok = Rooms.remove_member(room_id, user_id)
       Registry.unregister(MinesweeperBackendWeb.RoomRegistry, {room_id, user_id})
     end
 

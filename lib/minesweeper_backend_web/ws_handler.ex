@@ -56,6 +56,7 @@ defmodule MinesweeperBackendWeb.WsHandler do
       {:ok, "join", payload} -> handle_join(payload, state)
       {:ok, "ready", payload} -> handle_ready(payload, state)
       {:ok, "cancelReady", payload} -> handle_cancel_ready(payload, state)
+      {:ok, "settings", payload} -> handle_settings(payload, state)
       {:ok, "startGame", payload} -> handle_start_game(payload, state)
       {:ok, "boardClick", payload} -> handle_board_click(payload, state)
       {:ok, "flag", payload} -> handle_flag(payload, state)
@@ -132,6 +133,41 @@ defmodule MinesweeperBackendWeb.WsHandler do
     else
       {:error, reason} -> reply_requirement_error(state, reason)
     end
+  end
+
+  defp handle_settings(%{"mines" => mines, "size" => size}, state)
+       when is_integer(mines) and is_integer(size) do
+    with {:ok, user_id} <- require_user_id(state),
+         {:ok, room_id} <- require_room_id(state),
+         {:ok, %{owner_id: ^user_id}} <- Rooms.fetch_room(room_id),
+         {:ok, _settings} <- Game.configure(room_id, size, mines) do
+      push(state, "done", %{})
+    else
+      {:ok, _room} ->
+        push(state, "error", %{message: "방장만 보드를 설정할 수 있습니다"})
+
+      {:error, :invalid_size} ->
+        push(state, "error", %{message: "size가 유효하지 않습니다"})
+
+      {:error, :invalid_mines} ->
+        push(state, "error", %{message: "mines가 유효하지 않습니다"})
+
+      {:error, :invalid_settings} ->
+        push(state, "error", %{message: "mines와 size는 정수여야 합니다"})
+
+      {:error, :already_playing} ->
+        push(state, "error", %{message: "게임 진행 중에는 보드를 설정할 수 없습니다"})
+
+      {:error, :not_found} ->
+        push(state, "error", %{message: "방을 찾을 수 없습니다"})
+
+      {:error, reason} ->
+        reply_requirement_error(state, reason)
+    end
+  end
+
+  defp handle_settings(_payload, state) do
+    push(state, "error", %{message: "mines와 size는 정수여야 합니다"})
   end
 
   defp handle_start_game(_payload, state) do
@@ -252,8 +288,12 @@ defmodule MinesweeperBackendWeb.WsHandler do
     {:push, [{:text, encode_message(event, payload)}], state}
   end
 
-  defp session_id_from(%{"sessionId" => session_id}) when is_binary(session_id), do: {:ok, session_id}
-  defp session_id_from(%{"session_id" => session_id}) when is_binary(session_id), do: {:ok, session_id}
+  defp session_id_from(%{"sessionId" => session_id}) when is_binary(session_id),
+    do: {:ok, session_id}
+
+  defp session_id_from(%{"session_id" => session_id}) when is_binary(session_id),
+    do: {:ok, session_id}
+
   defp session_id_from(_), do: :error
 
   defp require_user_id(%{user_id: user_id}) when is_binary(user_id), do: {:ok, user_id}

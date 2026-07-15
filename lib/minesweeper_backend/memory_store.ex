@@ -42,6 +42,12 @@ defmodule MinesweeperBackend.MemoryStore do
   def cleanup_stale_empty_rooms,
     do: GenServer.call(__MODULE__, :cleanup_stale_empty_rooms)
 
+  def fetch_game_settings(room_id),
+    do: GenServer.call(__MODULE__, {:fetch_game_settings, room_id})
+
+  def put_game_settings(room_id, settings),
+    do: GenServer.call(__MODULE__, {:put_game_settings, room_id, settings})
+
   def fetch_game(room_id), do: GenServer.call(__MODULE__, {:fetch_game, room_id})
   def put_game(room_id, game), do: GenServer.call(__MODULE__, {:put_game, room_id, game})
   def delete_game(room_id), do: GenServer.call(__MODULE__, {:delete_game, room_id})
@@ -58,6 +64,7 @@ defmodule MinesweeperBackend.MemoryStore do
        rooms: %{},
        members: %{},
        ready: %{},
+       game_settings: %{},
        games: %{}
      }}
   end
@@ -217,6 +224,18 @@ defmodule MinesweeperBackend.MemoryStore do
     {:reply, :ok, drop_empty_rooms(state)}
   end
 
+  def handle_call({:fetch_game_settings, room_id}, _from, state) do
+    {:reply, Map.fetch(state.game_settings, room_id), state}
+  end
+
+  def handle_call({:put_game_settings, room_id, settings}, _from, state) do
+    if Map.has_key?(state.rooms, room_id) do
+      {:reply, :ok, put_in(state, [:game_settings, room_id], settings)}
+    else
+      {:reply, {:error, :not_found}, state}
+    end
+  end
+
   def handle_call({:fetch_game, room_id}, _from, state) do
     {:reply, Map.fetch(state.games, room_id), state}
   end
@@ -350,6 +369,7 @@ defmodule MinesweeperBackend.MemoryStore do
     |> update_in([:rooms], &Map.delete(&1, room_id))
     |> update_in([:members], &Map.delete(&1, room_id))
     |> update_in([:ready], &Map.delete(&1, room_id))
+    |> update_in([:game_settings], &Map.delete(&1, room_id))
     |> update_in([:games], &Map.delete(&1, room_id))
   end
 end

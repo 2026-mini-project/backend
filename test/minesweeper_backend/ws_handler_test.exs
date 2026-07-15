@@ -104,6 +104,36 @@ defmodule MinesweeperBackendWeb.WsHandlerTest do
     send(recipient_pid, :stop)
   end
 
+  test "owner can configure the board and receives done" do
+    {:ok, owner} = Accounts.create_session(%{"name" => "settings-owner"})
+    {:ok, guest} = Accounts.create_session(%{"name" => "settings-guest"})
+
+    {:ok, room} =
+      Rooms.create_room(owner.id, %{"name" => "settings-room", "private" => false})
+
+    :ok = Rooms.add_member(room.id, guest.id)
+
+    state = %{user_id: owner.id, room_id: room.id, identify_timer: nil}
+    payload = %{"mines" => 7, "size" => 6}
+
+    assert {:push, [{:text, raw}], ^state} =
+             WsHandler.handle_in({Jason.encode!(["settings", payload]), opcode: :text}, state)
+
+    assert Jason.decode!(raw) == ["done"]
+    assert Game.settings(room.id) == %{mines: 7, size: 6}
+
+    assert {:ok, game} = Game.start_game(room.id, [owner.id, guest.id])
+    assert game.board_size == 6
+    assert game.mine_count == 7
+
+    assert {:ok, decoded} = Game.decode_board(game.board)
+
+    assert decoded
+           |> :binary.bin_to_list()
+           |> Enum.take(36)
+           |> Enum.count(&(&1 == 1)) == 7
+  end
+
   defp joined_users(room_id) do
     Rooms.list_members(room_id)
     |> Enum.map(fn id ->

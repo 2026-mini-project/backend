@@ -225,7 +225,8 @@ ws.onmessage = (event) => {
 3. `identify` → `welcome` (5초 이내, 실패/타임아웃 시 연결 종료)
 4. `ping` / `pong` heartbeat (`pingInterval` ms마다 ping, `pingInterval + 3초` 동안 pong 없으면 클라이언트가 close)
 5. `join` → `joined`
-6. `ready` / `startGame` / 인게임 이벤트
+6. 방장은 필요하면 `settings`로 보드 설정
+7. `ready` / `startGame` / 인게임 이벤트
 
 # 이벤트 요약 (WebSocket)
 
@@ -236,6 +237,7 @@ ws.onmessage = (event) => {
 | `["join", {id: roomId}]` | `["joined", APIUser[]]` | |
 | `["ready"]` | `["ready", APIUser]` | |
 | `["cancelReady"]` | `["cancelReady", APIUser]` | |
+| `["settings", {mines, size}]` | `["done"]` | 방장 전용, 다음 게임부터 적용 |
 | `["startGame"]` | `["gameStarted"]`, `["gameBoard", {data}]` | `{data: base85}` |
 | `["boardClick", {x, y}]` | `["boardClick", {x, y, by}]`, `["turn", {userId}]` | |
 | `["flag", {x, y}]` | `["flag", {x, y, by}]`, `["turn", {userId}]` | |

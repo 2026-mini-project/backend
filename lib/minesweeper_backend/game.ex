@@ -17,6 +17,30 @@ defmodule MinesweeperBackend.Game do
 
   def board_size, do: Application.get_env(:minesweeper_backend, :game_board_size, 8)
   def mine_count, do: Application.get_env(:minesweeper_backend, :game_mine_count, 10)
+  def max_board_size, do: Application.get_env(:minesweeper_backend, :game_max_board_size, 100)
+
+  @doc "Stores the board settings to use for the room's next game."
+  def configure(room_id, size, mines)
+      when is_binary(room_id) and is_integer(size) and is_integer(mines) do
+    cond do
+      size <= 0 or size > max_board_size() ->
+        {:error, :invalid_size}
+
+      mines < 0 or mines >= size * size ->
+        {:error, :invalid_mines}
+
+      status(room_id) == :playing ->
+        {:error, :already_playing}
+
+      true ->
+        case MemoryStore.put_game_settings(room_id, %{size: size, mines: mines}) do
+          :ok -> {:ok, %{size: size, mines: mines}}
+          {:error, :not_found} -> {:error, :not_found}
+        end
+    end
+  end
+
+  def configure(_room_id, _size, _mines), do: {:error, :invalid_settings}
 
   @doc """
   Starts a new game in `room_id`. `members` is the list of session
@@ -36,8 +60,7 @@ defmodule MinesweeperBackend.Game do
         {:error, :already_playing}
 
       true ->
-        size = board_size()
-        mines = mine_count()
+        %{size: size, mines: mines} = settings(room_id)
         board = generate_board(size, mines)
         encoded = encode_board(board)
         [first, second | _] = Enum.sort(members)
@@ -62,6 +85,14 @@ defmodule MinesweeperBackend.Game do
            current_turn: first,
            order: [first, second]
          }}
+    end
+  end
+
+  @doc "Returns a room's configured board settings, falling back to defaults."
+  def settings(room_id) do
+    case MemoryStore.fetch_game_settings(room_id) do
+      {:ok, %{size: size, mines: mines}} -> %{size: size, mines: mines}
+      :error -> %{size: board_size(), mines: mine_count()}
     end
   end
 
@@ -206,7 +237,7 @@ defmodule MinesweeperBackend.Game do
   chunk it cleanly.
   """
   def encode_board(bits) when is_binary(bits) do
-    pad = (-byte_size(bits)) |> rem(4) |> Kernel.+(4) |> rem(4)
+    pad = -byte_size(bits) |> rem(4) |> Kernel.+(4) |> rem(4)
     padded = bits <> :binary.copy(<<0>>, pad)
     Base85.encode(padded)
   end

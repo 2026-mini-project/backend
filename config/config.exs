@@ -20,7 +20,8 @@ config :minesweeper_backend,
   socket_ping_interval_ms: 10_000,
   socket_pong_timeout_ms: 3_000,
   game_board_size: 8,
-  game_mine_count: 10
+  game_mine_count: 10,
+  game_max_board_size: 100
 
 config :phoenix, :json_library, Jason
 

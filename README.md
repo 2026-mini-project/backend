@@ -238,6 +238,7 @@ ws.onmessage = (event) => {
 | `["cancelReady"]` | `["cancelReady", APIUser]` | |
 | `["startGame"]` | `["gameStarted"]`, `["gameBoard", {data}]` | `{data: base85}` |
 | `["boardClick", {x, y}]` | `["boardClick", {x, y, by}]`, `["turn", {userId}]` | |
+| `["flag", {x, y}]` | `["flag", {x, y, by}]`, `["turn", {userId}]` | |
 | `["gameClear"]` | `["gameClear", {winner}]` | `{winner: APIUser}` |
 | | `["error", APIError]` | |
 

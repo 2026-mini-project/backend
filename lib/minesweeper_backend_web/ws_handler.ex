@@ -58,6 +58,7 @@ defmodule MinesweeperBackendWeb.WsHandler do
       {:ok, "cancelReady", payload} -> handle_cancel_ready(payload, state)
       {:ok, "startGame", payload} -> handle_start_game(payload, state)
       {:ok, "boardClick", payload} -> handle_board_click(payload, state)
+      {:ok, "flag", payload} -> handle_flag(payload, state)
       {:ok, "gameClear", payload} -> handle_game_clear(payload, state)
       {:ok, _event, _payload} -> {:ok, state}
       :error -> {:ok, state}
@@ -166,15 +167,32 @@ defmodule MinesweeperBackendWeb.WsHandler do
 
   defp handle_board_click(%{"x" => x, "y" => y}, state)
        when is_integer(x) and is_integer(y) do
+    handle_turn_action("boardClick", x, y, state)
+  end
+
+  defp handle_board_click(_payload, state) do
+    push(state, "error", %{message: "boardClick x, y가 필요합니다"})
+  end
+
+  defp handle_flag(%{"x" => x, "y" => y}, state)
+       when is_integer(x) and is_integer(y) do
+    handle_turn_action("flag", x, y, state)
+  end
+
+  defp handle_flag(_payload, state) do
+    push(state, "error", %{message: "flag x, y가 필요합니다"})
+  end
+
+  defp handle_turn_action(event, x, y, state) do
     with {:ok, user_id} <- require_user_id(state),
          {:ok, room_id} <- require_room_id(state) do
       case Game.take_turn(room_id, user_id) do
         {:ok, :next_turn, next_user_id} ->
           payload = %{x: x, y: y, by: user_id}
-          broadcast_room(room_id, "boardClick", payload, except: self())
+          broadcast_room(room_id, event, payload, except: self())
           send_turn(room_id, next_user_id)
 
-          push(state, "boardClick", payload)
+          push(state, event, payload)
 
         {:error, :not_your_turn} ->
           push(state, "error", %{message: "내 턴이 아닙니다"})
@@ -188,10 +206,6 @@ defmodule MinesweeperBackendWeb.WsHandler do
     else
       {:error, reason} -> reply_requirement_error(state, reason)
     end
-  end
-
-  defp handle_board_click(_payload, state) do
-    push(state, "error", %{message: "boardClick x, y가 필요합니다"})
   end
 
   defp handle_game_clear(_payload, state) do

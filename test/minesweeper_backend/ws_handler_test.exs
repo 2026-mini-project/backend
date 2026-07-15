@@ -1,7 +1,7 @@
 defmodule MinesweeperBackendWeb.WsHandlerTest do
   use ExUnit.Case, async: false
 
-  alias MinesweeperBackend.{Accounts, Rooms}
+  alias MinesweeperBackend.{Accounts, Game, Rooms}
   alias MinesweeperBackendWeb.WsHandler
 
   setup do
@@ -63,6 +63,47 @@ defmodule MinesweeperBackendWeb.WsHandlerTest do
     assert {:error, :not_found} = Rooms.fetch_room(room.id)
   end
 
+  test "flag broadcasts the same payload shape as boardClick to room members" do
+    {:ok, owner} = Accounts.create_session(%{"name" => "flag-owner"})
+    {:ok, guest} = Accounts.create_session(%{"name" => "flag-guest"})
+    {:ok, room} = Rooms.create_room(owner.id, %{"name" => "flag-room", "private" => false})
+    :ok = Rooms.add_member(room.id, guest.id)
+
+    [current_user_id, next_user_id] = Enum.sort([owner.id, guest.id])
+    {:ok, _game} = Game.start_game(room.id, [owner.id, guest.id])
+
+    recipient_user_id = if current_user_id == owner.id, do: guest.id, else: owner.id
+    test_pid = self()
+
+    recipient_pid =
+      spawn_link(fn ->
+        Registry.register(
+          MinesweeperBackendWeb.RoomRegistry,
+          {room.id, recipient_user_id},
+          nil
+        )
+
+        send(test_pid, :recipient_registered)
+        forward_room_pushes(test_pid)
+      end)
+
+    assert_receive :recipient_registered
+
+    state = %{user_id: current_user_id, room_id: room.id, identify_timer: nil}
+    payload = %{"x" => 2, "y" => 3}
+
+    assert {:push, [{:text, raw}], ^state} =
+             WsHandler.handle_in({Jason.encode!(["flag", payload]), opcode: :text}, state)
+
+    assert Jason.decode!(raw) == ["flag", %{"x" => 2, "y" => 3, "by" => current_user_id}]
+
+    assert_receive {:recipient_push, "flag", broadcast_payload}
+    assert broadcast_payload == %{x: 2, y: 3, by: current_user_id}
+    assert_receive {:recipient_push, "turn", %{userId: ^next_user_id}}
+
+    send(recipient_pid, :stop)
+  end
+
   defp joined_users(room_id) do
     Rooms.list_members(room_id)
     |> Enum.map(fn id ->
@@ -76,6 +117,17 @@ defmodule MinesweeperBackendWeb.WsHandlerTest do
       :identify_timeout -> drain_timer_messages(state)
     after
       0 -> state
+    end
+  end
+
+  defp forward_room_pushes(test_pid) do
+    receive do
+      {:room_push, event, payload} ->
+        send(test_pid, {:recipient_push, event, payload})
+        forward_room_pushes(test_pid)
+
+      :stop ->
+        :ok
     end
   end
 end
